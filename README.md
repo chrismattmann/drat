@@ -19,7 +19,7 @@ See the wiki for more information on installing and running DRAT:
 * [Running the DRAT Proteus GUI](https://github.com/apache/drat/wiki/Proteus---A-GUI-for-DRAT)
 
 You can clone the wiki by running  
-`git clone https://github.com/apache/drat.wiki.git`
+`git clone https://github.com/chrismattmann/drat.wiki.git`
 
 Visit our new website [chrismattmann.github.io/drat](https://chrismattmann.github.io/drat/) at [Github](https://github.com/).
 
