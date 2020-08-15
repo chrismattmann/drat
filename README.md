@@ -1,4 +1,4 @@
-Apache Distributed Release Audit Tool (DRAT)&trade;
+Distributed Release Audit Tool (DRAT)
 ====
  
 A distributed, parallelized (Map Reduce) wrapper around [Apache RAT&trade;](http://creadur.apache.org/rat/) (Release Audit Tool). RAT is used to check for proper licensing in software projects. However, RAT takes a prohibitively long time to analyze large repositories of code, since it can only run on one JVM. Furthermore, RAT isn't customizable by file type or file size and provides no incremental output. This wrapper dramatically speeds up the process by leveraging Apache OODT&trade; to parallelize and workflow the following components:
@@ -21,8 +21,8 @@ See the wiki for more information on installing and running DRAT:
 You can clone the wiki by running  
 `git clone https://github.com/apache/drat.wiki.git`
 
-Visit our new website [drat.apache.org](https://drat.apache.org/) at the [Apache Software Foundation](https://www.apache.org/).
+Visit our new website [chrismattmann.github.io/drat](https://chrismattmann.github.io/drat/) at [Github](https://github.com/).
 
 ---
 
-Current build status: [![Build Status](https://travis-ci.org/apache/drat.svg?branch=master)](https://travis-ci.org/apache/drat)
+Current build status: [![Build Status](https://travis-ci.org/chrismattmann/drat.svg?branch=master)](https://travis-ci.org/chrismattmann/drat)
