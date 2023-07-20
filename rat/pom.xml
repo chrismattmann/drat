@@ -41,7 +41,7 @@
       <groupId>org.apache.rat</groupId>
       <artifactId>apache-rat</artifactId>
       <!-- do not forget to update https://github.com/apache/drat/blob/master/pge/src/main/resources/config/PgeConfig_Rat.xml in case of RAT-updates as well -->
-      <version>0.13</version>
+      <version>0.15</version>
     </dependency>  
   </dependencies>
 
