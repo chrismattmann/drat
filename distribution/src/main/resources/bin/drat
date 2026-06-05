@@ -50,7 +50,7 @@ OPSUI_URL=http://${OODT_HOST}:8080/opsui
 # --exclude file/directory name.
 function crawl {
     check_services_running
-    if [ $1 = "--exclude" ]; then
+    if [[ "${1:-}" == "--exclude" ]]; then
 	check_num_args "crawl" $# 3
 	export DRAT_EXCLUDE=".*${2}.*"
 	PRODUCT_PATH=$3
@@ -64,7 +64,7 @@ function crawl {
     python dump_repo_details.py $PRODUCT_PATH
 
 
-   ./crawler_launcher --operation --metPC --metExtractorConfig \
+   JAVA_OPTS="${JAVA_OPTS:-} -DDRAT_EXCLUDE=${DRAT_EXCLUDE}" ./crawler_launcher --operation --metPC --metExtractorConfig \
    $DRAT_HOME/extractors/code/default.cpr.conf --metExtractor org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor \
    --filemgrUrl $FILEMGR_URL --clientTransferer org.apache.oodt.cas.filemgr.datatransfer.InPlaceDataTransferFactory \
    --preCondIds RegExExcludeComparator --productPath $PRODUCT_PATH
@@ -95,20 +95,10 @@ function map {
 
 # Get the current list of RatAuditTasks running.
 function current_pges {
-    STATUS="PGE%20EXEC"
-    tika="java -jar $DRAT_HOME/lib/tika-app-1.18.jar"
-
-    # Added workaround to catch the intermitent 500 error (very unlikely) and let the script continue
-    # The workaround shall not be required once we solve OODT-920 issue
-    status=$(($tika "${OPSUI_URL}/instances/${STATUS}/1" | grep -v FINISHED | grep RatCodeAudit) 2>&1)
-    if echo "$status" | grep -q "Server returned HTTP response code: 500"; then
-	echo "500 Error occurred but continue";	 
-    else
-	echo $status;
-    fi
-
-    # Commented old code
-    #echo $($tika "${OPSUI_URL}/instances/${STATUS}/1" | grep -v FINISHED | grep RatCodeAudit)
+    pushd $DRAT_HOME/workflow/bin >> $DRAT_HOME/logs/drat.log 2>&1
+    status=$(./wmgr-client --url $CLIENT_URL --operation --getFirstPage --status "PGE EXEC" 2>&1 || true)
+    popd >> $DRAT_HOME/logs/drat.log 2>&1
+    echo "$status" | grep "currentTask=urn:drat:RatCodeAudit" || true
 }
 
 # Fire off the MapReduce reducer. Expects no arguments.
@@ -181,7 +171,7 @@ function check_services_running {
 # Attempt to automate crawling, indexing, mapping, and reducing. Expects 1 argument: the directory to analyze.
 function go {
     check_services_running
-    if [ $1 = "--exclude" ]; then
+    if [[ "${1:-}" == "--exclude" ]]; then
         check_num_args "go" $# 3
         PRODUCT_PATH=$3
     else
