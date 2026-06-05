@@ -25,4 +25,4 @@ Visit our new website [chrismattmann.github.io/drat](https://chrismattmann.githu
 
 ---
 
-Current build status: [![Build Status](https://travis-ci.org/chrismattmann/drat.svg?branch=master)](https://travis-ci.org/chrismattmann/drat)
+Current build status: [![Build](https://github.com/chrismattmann/drat/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/chrismattmann/drat/actions/workflows/build.yml)
