@@ -11,7 +11,7 @@
 #
 ############################
 
-export DRAT_HOME=$HOME/drat/deploy
+export DRAT_HOME=${DRAT_HOME:-$HOME/drat/deploy}
 export FILEMGR_URL=http://localhost:9000
 export WORKFLOW_URL=http://localhost:9001
 export RESMGR_URL=http://localhost:9002
@@ -30,10 +30,10 @@ export DRAT_EXCLUDE=""
 # bin directory since relative pathing is being used.  This block also
 # assumes that the filemgr is running on port 9000 (the default port of filemgr)
 #
-alias fmquery="java -Dorg.apache.oodt.cas.filemgr.properties=$FILEMGR_HOME/etc/filemgr.properties -Djava.ext.dirs=.$FILEMGR_HOME/lib org.apache.oodt.cas.filemgr.tools.QueryTool --url $FILEMGR_URL --lucene -query "
+alias fmquery="java -Dorg.apache.oodt.cas.filemgr.properties=$FILEMGR_HOME/etc/filemgr.properties -cp \"$FILEMGR_HOME/lib/*\" org.apache.oodt.cas.filemgr.tools.QueryTool --url $FILEMGR_URL --lucene -query "
 #
-alias fmdel="java -Dorg.apache.oodt.cas.filemgr.properties=$FILEMGR_HOME/etc/filemgr.properties -Djava.ext.dirs=$FILEMGR_URL/lib org.apache.oodt.cas.filemgr.tools.DeleteProduct --fileManagerUrl $FILEMGR_URL --read"
+alias fmdel="java -Dorg.apache.oodt.cas.filemgr.properties=$FILEMGR_HOME/etc/filemgr.properties -cp \"$FILEMGR_HOME/lib/*\" org.apache.oodt.cas.filemgr.tools.DeleteProduct --fileManagerUrl $FILEMGR_URL --read"
 #
-alias metdump="java -Djava.ext.dirs=$FILEMGR_HOME/lib org.apache.oodt.cas.filemgr.tools.MetadataDumper --url $FILEMGR_URL --out . --productId "
+alias metdump="java -cp \"$FILEMGR_HOME/lib/*\" org.apache.oodt.cas.filemgr.tools.MetadataDumper --url $FILEMGR_URL --out . --productId "
 #
 ######## END OF BLOCK #######

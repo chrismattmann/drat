@@ -4,7 +4,8 @@ import backend.FileConstants;
 import org.apache.oodt.cas.filemgr.structs.ProductType;
 import org.apache.oodt.cas.filemgr.structs.exceptions.CatalogException;
 import org.apache.oodt.cas.filemgr.structs.exceptions.ConnectionException;
-import org.apache.oodt.cas.filemgr.system.XmlRpcFileManagerClient;
+import org.apache.oodt.cas.filemgr.system.FileManagerClient;
+import org.apache.oodt.cas.filemgr.util.RpcCommunicationFactory;
 import org.apache.oodt.cas.metadata.Metadata;
 import org.apache.oodt.cas.metadata.util.PathUtils;
 import org.wicketstuff.rest.annotations.MethodMapping;
@@ -18,14 +19,14 @@ import java.util.logging.Logger;
 public class FileManagerRestResource extends AbstractRestResource<GsonWebSerialDeserial> {
   
   private static final long serialVersionUID = -588588505908995065L;
-  XmlRpcFileManagerClient fileManagerClient;
+  FileManagerClient fileManagerClient;
   
   private static final Logger LOG = Logger.getLogger(FileManagerRestResource.class.getName());
   
   public FileManagerRestResource() {
     super(new GsonWebSerialDeserial());
     try{
-      fileManagerClient = new XmlRpcFileManagerClient(new URL(PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL)));
+      fileManagerClient = RpcCommunicationFactory.createClient(new URL(PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL)));
     }catch (Exception ex){
       LOG.severe(ex.getMessage());
     }

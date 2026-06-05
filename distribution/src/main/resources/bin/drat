@@ -78,7 +78,7 @@ function index {
     check_services_running
     check_num_args "index" $# 1
     pushd $DRAT_HOME/filemgr/bin >> $DRAT_HOME/logs/drat.log 2>&1
-    java -Djava.ext.dirs=../lib -DSOLR_INDEXER_CONFIG=../etc/indexer.properties \
+    java -DSOLR_INDEXER_CONFIG=../etc/indexer.properties -cp "../lib/*" \
     org.apache.oodt.cas.filemgr.tools.SolrIndexer --all --fmUrl $FILEMGR_URL --optimize --solrUrl $SOLR_URL $1
     popd >> $DRAT_HOME/logs/drat.log 2>&1
 }

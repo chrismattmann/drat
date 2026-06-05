@@ -48,8 +48,7 @@ echo "export DRAT_HOME=/usr/local/drat/deploy" >> /home/vagrant/.bashrc
 #     https://cwiki.apache.org/confluence/display/OODT/BASH+and+TCSH+shell+tools+for+File+Manager
 #
 
-echo "alias lucenequery=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -Djava.ext.dirs=../lib org.apache.oodt.cas.filemgr.tools.QueryTool --url http://localhost:9000 --lucene -query \"" >> /home/vagrant/.bashrc
-echo "alias sqlquery=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -Djava.ext.dirs=../lib org.apache.oodt.cas.filemgr.tools.QueryTool --url http://localhost:9000 --sql -query \"" >> /home/vagrant/.bashrc
-echo "alias fmdel=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -Djava.ext.dirs=../lib org.apache.oodt.cas.filemgr.tools.DeleteProduct --fileManagerUrl http://localhost:9000 --read\"" >> /home/vagrant/.bashrc
-echo "alias metdump=\"java -Djava.ext.dirs=../lib org.apache.oodt.cas.filemgr.tools.MetadataDumper --url http://localhost:9000 --out . --productId \"" >> /home/vagrant/.bashrc
-
+echo "alias lucenequery=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -cp '../lib/*' org.apache.oodt.cas.filemgr.tools.QueryTool --url http://localhost:9000 --lucene -query \"" >> /home/vagrant/.bashrc
+echo "alias sqlquery=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -cp '../lib/*' org.apache.oodt.cas.filemgr.tools.QueryTool --url http://localhost:9000 --sql -query \"" >> /home/vagrant/.bashrc
+echo "alias fmdel=\"java -Dorg.apache.oodt.cas.filemgr.properties=../etc/filemgr.properties -cp '../lib/*' org.apache.oodt.cas.filemgr.tools.DeleteProduct --fileManagerUrl http://localhost:9000 --read\"" >> /home/vagrant/.bashrc
+echo "alias metdump=\"java -cp '../lib/*' org.apache.oodt.cas.filemgr.tools.MetadataDumper --url http://localhost:9000 --out . --productId \"" >> /home/vagrant/.bashrc

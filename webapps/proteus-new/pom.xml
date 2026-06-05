@@ -23,7 +23,7 @@
 	    <version>1.3.2</version>
 	    <executions>
 		<execution>
-			<id>npm install (initialize)</id>
+			<id>npm ci (initialize)</id>
 			<goals>
 				<goal>exec</goal>
 			</goals>
@@ -31,7 +31,7 @@
 			<configuration>
 				<executable>npm</executable>
 				<arguments>
-					<argument>install</argument>
+					<argument>ci</argument>
 				</arguments>
 			</configuration>
 		</execution>
@@ -82,13 +82,18 @@
 	</executions>
 	<configuration>
 		<workingDirectory>src/main/webapp/resources/</workingDirectory>
+		<environmentVariables>
+			<NODE_OPTIONS>--openssl-legacy-provider</NODE_OPTIONS>
+		</environmentVariables>
 	</configuration>
 	</plugin>
         <plugin>
          <groupId>org.apache.maven.plugins</groupId>
          <artifactId>maven-war-plugin</artifactId>
-         <version>2.1.1</version>
+         <version>${maven.war.plugin.version}</version>
          <configuration>
+           <packagingExcludes>resources/node_modules/**,resources/dist/**</packagingExcludes>
+           <warSourceExcludes>resources/node_modules/**,resources/dist/**</warSourceExcludes>
          </configuration>
         </plugin>
      </plugins>	     

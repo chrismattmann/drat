@@ -78,6 +78,7 @@
       <directory>${project.build.directory}/apache-tomcat-${tomcat.version}</directory>
       <outputDirectory>tomcat</outputDirectory>
       <excludes>
+        <exclude>bin/*.sh</exclude>
         <exclude>**/webapps/docs/**</exclude>
         <exclude>**/webapps/examples/**</exclude>
         <exclude>**/webapps/host-manager/**</exclude>
@@ -86,6 +87,14 @@
         <exclude>**/webapps/jsp-examples/**</exclude>
         <exclude>**/webapps/webdav/**</exclude>
       </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.build.directory}/apache-tomcat-${tomcat.version}/bin</directory>
+      <outputDirectory>tomcat/bin</outputDirectory>
+      <includes>
+        <include>*.sh</include>
+      </includes>
+      <fileMode>775</fileMode>
     </fileSet>
   </fileSets>
   <dependencySets>

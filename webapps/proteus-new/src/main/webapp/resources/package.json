@@ -5,7 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "clean": "test -e ../index.html && rm -r ../css ../favicon.ico ../fonts ../index.html ../js ../logo.png ../leaf-logo.png|| echo 'Already Clean'",
-    "build": "vue-cli-service build && mv dist/* ./.. && rm -r dist",
+    "build": "node build.js",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {

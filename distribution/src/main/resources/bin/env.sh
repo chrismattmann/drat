@@ -85,12 +85,12 @@ else
   fi
 fi
 
-export CATALINA_OPTS=-Dsolr.solr.home="$DRAT_HOME"/solr
-
 if [ -z "$OODT_BASE" ]; then
   OODT_BASE="$OODT_HOME"
   export OODT_BASE
 fi
+
+export CATALINA_OPTS=-Dsolr.solr.home="$DRAT_HOME"/solr
 
 if [ -z "$OODT_OUT" ] ; then
   OODT_OUT="$OODT_BASE"/logs/oodt.out

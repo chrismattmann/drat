@@ -68,8 +68,8 @@ set DIR_PATH = `pwd`
 cd $ORIG_DIR
 
 java -Djava.util.logging.config.file=$DIR_PATH/../etc/logging.properties \
-    -Djava.ext.dirs=$DIR_PATH/../lib:$DIR_PATH/../../filemgr/lib:$DIR_PATH/../workflow/lib:$DIR_PATH/../../resmgr/lib \
     -Dorg.apache.oodt.cas.filemgr.properties=$DIR_PATH/../../filemgr/etc/filemgr.properties \
+    -cp "$DIR_PATH/../lib/*:$DIR_PATH/../../filemgr/lib/*:$DIR_PATH/../workflow/lib/*:$DIR_PATH/../../resmgr/lib/*" \
 	org.apache.oodt.pcs.tools.PCSHealthMonitor \
 	$FILEMGR_URL \
 	$WORKFLOW_URL \

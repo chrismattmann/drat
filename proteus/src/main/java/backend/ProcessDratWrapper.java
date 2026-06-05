@@ -35,7 +35,6 @@ import org.apache.oodt.cas.filemgr.structs.ProductType;
 import org.apache.oodt.cas.filemgr.tools.DeleteProduct;
 import org.apache.oodt.cas.filemgr.tools.SolrIndexer;
 import org.apache.oodt.cas.metadata.util.PathUtils;
-import org.apache.oodt.cas.workflow.system.XmlRpcWorkflowManagerClient;
 import org.apache.oodt.pcs.util.FileManagerUtils;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -255,8 +254,7 @@ public class ProcessDratWrapper extends GenericProcess
     }
 
     resetLog.logInfo("DRAT: reset: wiping WM instance repository.");
-    String wmUrl = PathUtils.replaceEnvVariables("[WORKFLOW_URL]");
-    this.wipeInstanceRepo(wmUrl);
+    this.wipeInstanceRepo();
 
     String[] coreNames = {"drat"}; // don't wipe stats or we can't aggregate data.
     for(String coreName: coreNames){
@@ -595,14 +593,15 @@ public class ProcessDratWrapper extends GenericProcess
       this.body.repo = this.path;
   }
 
-  private synchronized void wipeInstanceRepo(String wmUrl) {
-    XmlRpcWorkflowManagerClient wm;
+  private synchronized void wipeInstanceRepo() {
+    File instanceRepo = new File(PathUtils.replaceEnvVariables("[DRAT_HOME]"), "data/workflow");
     try {
-      wm = new XmlRpcWorkflowManagerClient(new URL(wmUrl));
-      wm.clearWorkflowInstances();
+      if (instanceRepo.exists()) {
+        FileUtils.forceDelete(instanceRepo);
+      }
     } catch (Exception e) {
       e.printStackTrace();
-      LOG.warning("DRAT: reset: error communicating with the WM. Message: "
+      LOG.warning("DRAT: reset: error deleting the WM instance repository. Message: "
           + e.getLocalizedMessage());
     }
   }

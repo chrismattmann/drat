@@ -81,11 +81,11 @@ if [ "$1" = "start" ]; then
   cd "$FILEMGR_HOME"/bin
   
   "$_RUNJAVA" $JAVA_OPTS $OODT_OPTS \
-    -Djava.ext.dirs="$FILEMGR_HOME"/lib \
     -Djava.util.logging.config.file="$FILEMGR_HOME"/etc/logging.properties \
     -Dorg.apache.oodt.cas.filemgr.properties="$FILEMGR_HOME"/etc/filemgr.properties \
     -Djava.io.tmpdir="$OODT_TMPDIR" \
-    org.apache.oodt.cas.filemgr.system.XmlRpcFileManager \
+    -cp "$FILEMGR_HOME/lib/*" \
+    org.apache.oodt.cas.filemgr.system.FileManagerServerMain \
     --portNum $FILEMGR_PORT 2>&1 &
 
   if [ ! -z "$FILEMGR_PID" ]; then
