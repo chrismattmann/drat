@@ -102,8 +102,14 @@ public class ProcessDratWrapper extends GenericProcess
     this.path = "";
     body = new DratRequestWrapper();
     this.status = "IDLE";
-    this.fm = new FileManagerUtils(
-        PathUtils.replaceEnvVariables("[FILEMGR_URL]"));
+  }
+
+  private synchronized FileManagerUtils getFileManagerUtils() {
+    if (this.fm == null) {
+      this.fm = new FileManagerUtils(
+          PathUtils.replaceEnvVariables("[FILEMGR_URL]"));
+    }
+    return this.fm;
   }
 
   public void setIndexablePath(String canonicalPath) {
@@ -233,19 +239,20 @@ public class ProcessDratWrapper extends GenericProcess
     DratLog resetLog = new DratLog("RESET");
     resetLog.logInfo("Starting","");
     resetLog.logInfo("DRAT: reset: wiping FM product catalog");
+    FileManagerUtils fileManagerUtils = getFileManagerUtils();
     for (String type : WIPE_TYPES) {
       int numTries = 0;
-      ProductType pType = fm.safeGetProductTypeByName(type);
+      ProductType pType = fileManagerUtils.safeGetProductTypeByName(type);
       // make sure all products are actually deleted in case there
       // are references issues or XML-RPC issues.
-      while (this.fm.safeGetNumProducts(pType) > 0
+      while (fileManagerUtils.safeGetNumProducts(pType) > 0
           && numTries <= MAX_RESET_TRIES) {
         this.wipeProductType(type);
         numTries++;
       }
 
       if (numTries == MAX_RESET_TRIES
-          && this.fm.safeGetNumProducts(pType) > 0) {
+          && fileManagerUtils.safeGetNumProducts(pType) > 0) {
         resetLog.logWarning("Unable to fully wipe type: [" + type + "]. Tried ["
             + String.valueOf(numTries) + "] times. Max attempts: ["
             + String.valueOf(MAX_RESET_TRIES)
@@ -332,8 +339,9 @@ public class ProcessDratWrapper extends GenericProcess
 
   private synchronized boolean hasAggregateRatLog() {
     int numLogs = -1;
-    ProductType type = this.fm.safeGetProductTypeByName("RatAggregateLog");
-    numLogs = this.fm.safeGetNumProducts(type);
+    FileManagerUtils fileManagerUtils = getFileManagerUtils();
+    ProductType type = fileManagerUtils.safeGetProductTypeByName("RatAggregateLog");
+    numLogs = fileManagerUtils.safeGetNumProducts(type);
     String breakStatus = (numLogs > 0) ? "breaking" : "looping";
     LOG.info("Checking for RatAggregateLog: num: [" + String.valueOf(numLogs)
         + "]: " + breakStatus);
@@ -512,15 +520,16 @@ public class ProcessDratWrapper extends GenericProcess
   }
 
   private synchronized void wipeProductType(String productTypeName) {
-    DeleteProduct dp = new DeleteProduct(this.fm.getFmUrl().toString(), true);
-    ProductType type = this.fm.safeGetProductTypeByName(productTypeName);
+    FileManagerUtils fileManagerUtils = getFileManagerUtils();
+    DeleteProduct dp = new DeleteProduct(fileManagerUtils.getFmUrl().toString(), true);
+    ProductType type = fileManagerUtils.safeGetProductTypeByName(productTypeName);
     if (type == null) {
       LOG.warning("Unable to get product type definition for: ["
           + productTypeName + "]: FM wipe fails.");
       return;
     }
     LOG.info("Paging through products for product type: " + productTypeName);
-    ProductPage page = this.fm.safeFirstPage(type);
+    ProductPage page = fileManagerUtils.safeFirstPage(type);
 
     while (page != null) {
       LOG.info("Cleaning File Manager: Product Type: [" + productTypeName
@@ -534,7 +543,7 @@ public class ProcessDratWrapper extends GenericProcess
         break;
       }
       try {
-        page = this.fm.getFmgrClient().getNextPage(type, page);
+        page = fileManagerUtils.getFmgrClient().getNextPage(type, page);
       } catch (Exception e) {
         e.printStackTrace();
         LOG.warning("Unable to obtain next page. Message: "
