@@ -20,6 +20,7 @@
       <outputDirectory>crawler/bin</outputDirectory>
       <includes/>
       <fileMode>755</fileMode>
+      <directoryMode>775</directoryMode>
     </fileSet>
     <fileSet>
       <directory>${basedir}/src/main/resources/logs</directory>

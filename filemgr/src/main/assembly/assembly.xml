@@ -21,6 +21,7 @@
       <outputDirectory>filemgr/bin</outputDirectory>
       <includes/>
       <fileMode>775</fileMode>
+      <directoryMode>775</directoryMode>
     </fileSet>
     <fileSet>
       <directory>target</directory>
@@ -72,4 +73,3 @@
     </dependencySet>
   </dependencySets>
 </assembly>
-

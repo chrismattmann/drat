@@ -21,6 +21,7 @@
       <outputDirectory>pge/bin</outputDirectory>
       <includes/>
       <fileMode>775</fileMode>
+      <directoryMode>775</directoryMode>
     </fileSet>
     <fileSet>
       <directory>${basedir}/src/main/resources/config</directory>

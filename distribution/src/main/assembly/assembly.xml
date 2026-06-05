@@ -12,6 +12,7 @@
       <outputDirectory>bin</outputDirectory>
       <includes/>
       <fileMode>775</fileMode>
+      <directoryMode>775</directoryMode>
     </fileSet>
     <fileSet>
       <directory>${basedir}/src/main/resources/conf</directory>
@@ -95,6 +96,7 @@
         <include>*.sh</include>
       </includes>
       <fileMode>775</fileMode>
+      <directoryMode>775</directoryMode>
     </fileSet>
   </fileSets>
   <dependencySets>
