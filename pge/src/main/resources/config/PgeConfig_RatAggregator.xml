@@ -6,9 +6,9 @@
   <exe dir="[JobDir]" shell="/bin/bash">
      <cmd>export PATH=$HOME/bin/:${PATH}</cmd>
      <cmd>echo "Creating working dirs"</cmd>
-     <cmd>mkdir [JobInputDir] ; mkdir [JobOutputDir]; mkdir [JobLogDir]</cmd>
+     <cmd>mkdir -p [JobInputDir] [JobOutputDir] [JobLogDir]</cmd>
      <cmd>echo "Running RAT aggregator"</cmd>
-     <cmd>[PythonExecutable] [RatAggregatorScript] `python -c "print(' '.join('[InputFiles]'.split(',')))"` > [JobOutputDir]/rat_aggregate_stats_[DateMilis].csv</cmd>
+     <cmd>[PythonExecutable] [RatAggregatorScript] `[PythonExecutable] -c "print(' '.join('[InputFiles]'.split(',')))"` > [JobOutputDir]/rat_aggregate_stats_[DateMilis].csv</cmd>
   </exe>
 
   <!-- Files to ingest -->

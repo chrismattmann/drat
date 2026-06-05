@@ -6,7 +6,7 @@
   <exe dir="[JobDir]" shell="/bin/bash">
      <cmd>export PATH=$HOME/bin/:${PATH}</cmd>
      <cmd>echo "Creating working dirs"</cmd>
-     <cmd>mkdir [JobInputDir] ; mkdir [JobOutputDir]; mkdir [JobLogDir]</cmd>
+     <cmd>mkdir -p [JobInputDir] [JobOutputDir] [JobLogDir]</cmd>
      <cmd>echo "Running MIME partitioner"</cmd>
      <cmd>[PythonExecutable] [MimePartitionerPyScript] -u [SolrUrl] -c [NumFilesPerJob] -w [PCS_WorkflowManagerUrl] -t [RatTaskId] > [JobLogDir]/mime-partitioner-[DateMilis].log</cmd>
   </exe>

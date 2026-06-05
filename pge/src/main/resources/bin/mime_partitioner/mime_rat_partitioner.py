@@ -25,13 +25,33 @@
 import sys
 import json
 import getopt
+import os
+import subprocess
 import urllib
 from urllib.request import urlopen, Request
-from xmlrpc import client
 
 #urllib.request.build_opener(urllib.HTTPHandler(debuglevel=1))
 solrPostfix = "/select/?q=mimetype:$type&version=2.2&start=0&rows=10&indent=on&facet=on&facet.field=mimetype&wt=json&fl=filelocation,filename"
 solrPostfixByPage = "/select/?q=mimetype:$type&version=2.2&start=$i&rows=$num&indent=on&facet=on&facet.field=mimetype&wt=json&fl=filelocation,filename"
+
+def get_drat_home():
+    drat_home = os.environ.get("DRAT_HOME")
+    if drat_home:
+        return drat_home
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+
+def execute_dynamic_workflow(workflowUrl, taskIds, metadata):
+    cmd = [
+        os.path.join(get_drat_home(), "workflow", "bin", "wmgr-client"),
+        "--url", workflowUrl,
+        "--operation",
+        "--dynWorkflow",
+        "--taskIds", taskIds,
+        "--metaData",
+        "--key", "MimeType", metadata["MimeType"],
+        "--key", "InputFiles",
+    ] + metadata.get("InputFiles", [])
+    subprocess.check_call(cmd)
 
 def executeRatJobs(url, num, type, workflowUrl, taskIds):
     # for i = 0 to count(records) i+=num
@@ -53,10 +73,6 @@ def executeRatJobs(url, num, type, workflowUrl, taskIds):
         print("HTTP error(%s)" % (err))
         print("Aborting RAT execution")
         return
-
-    wm = client.Server(workflowUrl)
-
-
     for i in range(0, numFound, num):
         ratSolrUrl = url + solrPostfixByPage.replace("$type", type).replace("$i", str(i)).replace("$num",str(num))
         req = Request(ratSolrUrl)
@@ -77,7 +93,7 @@ def executeRatJobs(url, num, type, workflowUrl, taskIds):
             metadata["InputFiles"].append(fullpath)
 
         print("Metadata is "+str(metadata))
-        wm.workflowmgr.executeDynamicWorkflow([taskIds], metadata)
+        execute_dynamic_workflow(workflowUrl, taskIds, metadata)
         
 
 def get_mime_types(solrUrl):
