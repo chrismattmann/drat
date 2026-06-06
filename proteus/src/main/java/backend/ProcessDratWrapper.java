@@ -318,6 +318,11 @@ public class ProcessDratWrapper extends GenericProcess
     while (!hasAggregateRatLog()) {
       try {
         if (!stillRunning(REDUCE_TASK_ID)) {
+          if (!hasRatLog()) {
+            goLog.logInfo("DRAT: go: no RatLog inputs available for reducer yet; sleeping.");
+            Thread.sleep(DRAT_PROCESS_WAIT_DURATION);
+            continue;
+          }
           goLog.logInfo("DRAT: go: no reduces running, and no rat aggregate log, so firing reducer.");
           reduce();
         }
@@ -344,6 +349,17 @@ public class ProcessDratWrapper extends GenericProcess
     numLogs = fileManagerUtils.safeGetNumProducts(type);
     String breakStatus = (numLogs > 0) ? "breaking" : "looping";
     LOG.info("Checking for RatAggregateLog: num: [" + String.valueOf(numLogs)
+        + "]: " + breakStatus);
+    return numLogs > 0;
+  }
+
+  private synchronized boolean hasRatLog() {
+    int numLogs = -1;
+    FileManagerUtils fileManagerUtils = getFileManagerUtils();
+    ProductType type = fileManagerUtils.safeGetProductTypeByName("RatLog");
+    numLogs = fileManagerUtils.safeGetNumProducts(type);
+    String breakStatus = (numLogs > 0) ? "ready" : "waiting";
+    LOG.info("Checking for RatLog: num: [" + String.valueOf(numLogs)
         + "]: " + breakStatus);
     return numLogs > 0;
   }

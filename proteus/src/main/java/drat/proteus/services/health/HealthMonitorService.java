@@ -80,38 +80,43 @@ public class HealthMonitorService extends AbstractRestService {
   }
 
   public boolean getOodtStatus() {
-    Response response = rerouteHealthMonitorData();
-    if (response == null || response.getStatus() > 300) { // there was an error
-                                                          // in the response,
-                                                          // possibly caused by
-                                                          // misconfig or OODT
-                                                          // not being on
+    try {
+      Response response = rerouteHealthMonitorData();
+      if (response == null || response.getStatus() > 300) { // there was an error
+                                                            // in the response,
+                                                            // possibly caused by
+                                                            // misconfig or OODT
+                                                            // not being on
+        return false;
+      }
+      String jsonBody;
+      try {
+        jsonBody = response.readEntity(String.class);
+      } finally {
+        response.close();
+      }
+      GsonBuilder g = new GsonBuilder();
+      g.serializeSpecialFloatingPointValues();
+      Gson gson = g.create();
+
+      Map<String, Object> rawStatusOutput = gson.fromJson(jsonBody,
+          Map.class);
+      Map<String, Object> report = (Map<String, Object>) rawStatusOutput
+          .get("report");
+      Map<String, Object> daemonStatus = (Map<String, Object>) report
+          .get("daemonStatus");
+      HealthMonitorItem fileManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
+          .get(FILE_MGR_ABBR));
+      HealthMonitorItem resManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
+          .get(RES_MGR_ABBR));
+      HealthMonitorItem workflowManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
+          .get(WORK_MGR_ABBR));
+      return fileManager.isRunning()
+          && resManager.isRunning() && workflowManager.isRunning();
+    } catch (Exception e) {
+      e.printStackTrace();
       return false;
     }
-    String jsonBody;
-    try {
-      jsonBody = response.readEntity(String.class);
-    } finally {
-      response.close();
-    }
-    GsonBuilder g = new GsonBuilder();
-    g.serializeSpecialFloatingPointValues();
-    Gson gson = g.create();
-    
-    Map<String, Object> rawStatusOutput = gson.fromJson(jsonBody,
-        Map.class);
-    Map<String, Object> report = (Map<String, Object>) rawStatusOutput
-        .get("report");
-    Map<String, Object> daemonStatus = (Map<String, Object>) report
-        .get("daemonStatus");
-    HealthMonitorItem fileManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
-        .get(FILE_MGR_ABBR));
-    HealthMonitorItem resManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
-        .get(RES_MGR_ABBR));
-    HealthMonitorItem workflowManager = (HealthMonitorItem) parseJsonMap((Map<String, Object>) daemonStatus
-        .get(WORK_MGR_ABBR));
-    return fileManager.isRunning()
-        && resManager.isRunning() && workflowManager.isRunning();
   }
 
   public Item getFileManagerStatus() throws URISyntaxException {

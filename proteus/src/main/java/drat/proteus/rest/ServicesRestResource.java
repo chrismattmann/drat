@@ -20,6 +20,7 @@ package drat.proteus.rest;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -147,18 +148,27 @@ public class ServicesRestResource
   }
 
   @MethodMapping(value = "/status/oodt/raw", httpMethod = HttpMethod.GET)
-  public Object getOodtRawHealthStatus() {
+  public Map<String, Object> getOodtRawHealthStatus() {
     Response response = healthMonitorService.rerouteHealthMonitorData();
+    Map<String, Object> status = new LinkedHashMap<String, Object>();
+    if (response == null) {
+      status.put("error", "No response from OODT health service");
+      return status;
+    }
     String jsonBody;
     try {
       jsonBody = response.readEntity(String.class);
     } finally {
       response.close();
     }
+    if (response.getStatus() > 300) {
+      status.put("error", "OODT health service returned HTTP " + response.getStatus());
+      status.put("body", jsonBody);
+      return status;
+    }
     GsonBuilder g = new GsonBuilder();
     g.serializeSpecialFloatingPointValues();
     Gson gson = g.create();
-    Map<String, Object> status = null;
     try {
       status = gson.fromJson(jsonBody, Map.class);
       return status;
@@ -166,7 +176,8 @@ public class ServicesRestResource
       LOG.warning(
           "Exception creating GSON object for OODT raw health. Message: "
               + e.getLocalizedMessage());
-      status = new ConcurrentHashMap<String, Object>();
+      status = new LinkedHashMap<String, Object>();
+      status.put("error", "Unable to parse OODT health response");
       return status;
     }
   }

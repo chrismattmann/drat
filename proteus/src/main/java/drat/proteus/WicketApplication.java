@@ -17,6 +17,11 @@
 
 package drat.proteus;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,10 +34,12 @@ import drat.proteus.filemgr.rest.FileManagerProgressResponse;
 import drat.proteus.filemgr.rest.FileManagerRestResource;
 import drat.proteus.rest.DratRestResource;
 import drat.proteus.rest.ServicesRestResource;
+import drat.proteus.services.constants.ProteusEndpointConstants;
 import drat.proteus.workflow.rest.WorkflowRestResource;
 
 import org.apache.wicket.markup.html.WebPage;
 import org.apache.wicket.protocol.http.WebApplication;
+import org.apache.wicket.request.resource.AbstractResource;
 import org.apache.wicket.request.resource.IResource;
 import org.apache.wicket.request.resource.PackageResourceReference;
 import org.apache.wicket.request.resource.ResourceReference;
@@ -66,6 +73,18 @@ public class WicketApplication extends WebApplication {
       @Override
       public IResource getResource() {
         return resource;
+      }
+    });
+    mountResource("/service/status/oodt/raw", new ResourceReference("oodtRawHealthReference") {
+      @Override
+      public IResource getResource() {
+        return newOodtRawHealthResource();
+      }
+    });
+    mountResource("/service/status/oodt", new ResourceReference("oodtHealthReference") {
+      @Override
+      public IResource getResource() {
+        return newOodtHealthResource();
       }
     });
     mountResource("/service", new ResourceReference("restReference") {
@@ -126,5 +145,84 @@ public class WicketApplication extends WebApplication {
     }
 
     return filteredResources;
+  }
+
+  private IResource newOodtRawHealthResource() {
+    return new AbstractResource() {
+      @Override
+      protected ResourceResponse newResourceResponse(Attributes attributes) {
+        ResourceResponse response = new ResourceResponse();
+        response.setContentType("application/json");
+        response.setTextEncoding("UTF-8");
+        response.disableCaching();
+        response.setWriteCallback(new WriteCallback() {
+          @Override
+          public void writeData(Attributes attributes) {
+            attributes.getResponse().write(readOodtHealthJson());
+          }
+        });
+        return response;
+      }
+    };
+  }
+
+  private IResource newOodtHealthResource() {
+    return new AbstractResource() {
+      @Override
+      protected ResourceResponse newResourceResponse(Attributes attributes) {
+        ResourceResponse response = new ResourceResponse();
+        response.setContentType("application/json");
+        response.setTextEncoding("UTF-8");
+        response.disableCaching();
+        response.setWriteCallback(new WriteCallback() {
+          @Override
+          public void writeData(Attributes attributes) {
+            String healthJson = readOodtHealthJson();
+            boolean isUp = healthJson.contains("\"fm\":{\"url\"")
+                && healthJson.contains("\"fm\":{\"url\":\"http://localhost:9000\",\"daemon\":\"File Manager\",\"status\":\"UP\"")
+                && healthJson.contains("\"wm\":{\"url\":\"http://localhost:9001\",\"daemon\":\"Workflow Manager\",\"status\":\"UP\"")
+                && healthJson.contains("\"rm\":{\"url\":\"http://localhost:9002\",\"daemon\":\"Resource Manager\",\"status\":\"UP\"");
+            attributes.getResponse().write(String.valueOf(isUp));
+          }
+        });
+        return response;
+      }
+    };
+  }
+
+  private String readOodtHealthJson() {
+    HttpURLConnection connection = null;
+    try {
+      URL healthUrl = new URL(ProteusEndpointConstants.BASE_URL
+          + ProteusEndpointConstants.Services.HEALTH_MONITOR + "/"
+          + ProteusEndpointConstants.HEALTH_STATUS_REPORT);
+      connection = (HttpURLConnection) healthUrl.openConnection();
+      connection.setConnectTimeout(2000);
+      connection.setReadTimeout(5000);
+      InputStream stream = connection.getResponseCode() < 400
+          ? connection.getInputStream() : connection.getErrorStream();
+      if (stream == null) {
+        return "{\"error\":\"OODT health service returned HTTP "
+            + connection.getResponseCode() + "\"}";
+      }
+      try {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] bytes = new byte[4096];
+        int count;
+        while ((count = stream.read(bytes)) != -1) {
+          buffer.write(bytes, 0, count);
+        }
+        return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+      } finally {
+        stream.close();
+      }
+    } catch (Exception e) {
+      LOG.log(Level.WARNING, "Unable to read OODT health status", e);
+      return "{\"error\":\"Unable to read OODT health status\"}";
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
+    }
   }
 }
