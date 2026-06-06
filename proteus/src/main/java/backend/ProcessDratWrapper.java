@@ -26,7 +26,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.oodt.cas.crawl.MetExtractorProductCrawler;
 import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
-import org.apache.oodt.pcs.util.WorkflowManagerUtils;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
 import org.apache.oodt.cas.filemgr.structs.Product;
@@ -156,19 +155,25 @@ public class ProcessDratWrapper extends GenericProcess
               FileConstants.CRAWLER_CONFIG);
       String crawlerId = "MetExtractorProductCrawler";
       System.setProperty("DRAT_EXCLUDE","");
-      FileSystemXmlApplicationContext appContext = new FileSystemXmlApplicationContext("file:"+beanRepo);
-    
-      MetExtractorProductCrawler crawler = new MetExtractorProductCrawler();
-      crawler.setApplicationContext(appContext);
-      crawler.setId(crawlerId);
-      crawler.setMetExtractor("org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor");
-      crawler.setMetExtractorConfig(FileConstants.MET_EXT_CONFIG_PATH);
-      crawler.setFilemgrUrl(FileConstants.FILEMGR_URL);
-      crawler.setClientTransferer("org.apache.oodt.cas.filemgr.datatransfer.InPlaceDataTransferFactory");
-      crawler.setPreCondIds(Arrays.asList("RegExExcludeComparator"));
-      crawler.setProductPath(this.path);
-      crawlLog.logInfo("Starting. ",null);
-      crawler.crawl();
+      FileSystemXmlApplicationContext appContext = null;
+      try {
+        appContext = new FileSystemXmlApplicationContext("file:" + beanRepo);
+        MetExtractorProductCrawler crawler = new MetExtractorProductCrawler();
+        crawler.setApplicationContext(appContext);
+        crawler.setId(crawlerId);
+        crawler.setMetExtractor("org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor");
+        crawler.setMetExtractorConfig(FileConstants.MET_EXT_CONFIG_PATH);
+        crawler.setFilemgrUrl(FileConstants.FILEMGR_URL);
+        crawler.setClientTransferer("org.apache.oodt.cas.filemgr.datatransfer.InPlaceDataTransferFactory");
+        crawler.setPreCondIds(Arrays.asList("RegExExcludeComparator"));
+        crawler.setProductPath(this.path);
+        crawlLog.logInfo("Starting. ",null);
+        crawler.crawl();
+      } finally {
+        if (appContext != null) {
+          appContext.close();
+        }
+      }
       crawlLog.logInfo("Completed.",null);
     }catch (Exception ex) {
       crawlLog.logSevere("ERROR ",ex.getLocalizedMessage());
@@ -367,13 +372,12 @@ public class ProcessDratWrapper extends GenericProcess
   private boolean stillRunning(String taskId) throws Exception {
         DratLog workflowRunLog = new DratLog("CHECKING FOR RUNNING MAPPERS/PARTITIONERS");
         workflowRunLog.logInfo("Starting.", "");
-        final WorkflowManagerUtils workflowManagerUtils = new WorkflowManagerUtils(FileConstants.CLIENT_URL);
         FutureTask<List<WorkflowInstance>> timeoutWorkflowInst = 
             new FutureTask<List<WorkflowInstance>>(
                 new Callable<List<WorkflowInstance>>() {
                   @Override
                   public List<WorkflowInstance> call() throws Exception {
-                    return workflowManagerUtils.getClient().getWorkflowInstances();
+                    return OodtClientPool.getWorkflowManagerClient().getWorkflowInstances();
                   }
                 }
         );
@@ -391,11 +395,13 @@ public class ProcessDratWrapper extends GenericProcess
         }
         catch(ExecutionException e) {
           workflowRunLog.logInfo("Drat::Checking Workflows:: Execution exception: "+e.getLocalizedMessage());
+          OodtClientPool.resetWorkflowManagerClient();
           workflowInstances = Collections.EMPTY_LIST;              
         }
         catch(TimeoutException e) {
           workflowRunLog.logInfo("Drat::Checking Workflows:: Timeout exception: "+e.getLocalizedMessage());          
           timeoutWorkflowInst.cancel(true);
+          OodtClientPool.resetWorkflowManagerClient();
           workflowInstances = Collections.EMPTY_LIST;
         }
         finally {
@@ -406,13 +412,6 @@ public class ProcessDratWrapper extends GenericProcess
             catch(InterruptedException ignore) {
               Thread.currentThread().interrupt();
             }
-          }
-          try {
-            workflowManagerUtils.close();
-          }
-          catch(IOException e) {
-            workflowRunLog.logInfo("Drat::Checking Workflows:: Unable to close WorkflowManagerUtils: "
-                + e.getLocalizedMessage());
           }
         }
        
