@@ -98,6 +98,15 @@
       <fileMode>775</fileMode>
       <directoryMode>775</directoryMode>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/src/main/resources/tomcat/bin</directory>
+      <outputDirectory>tomcat/bin</outputDirectory>
+      <includes>
+        <include>*.sh</include>
+      </includes>
+      <fileMode>775</fileMode>
+      <directoryMode>775</directoryMode>
+    </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>
