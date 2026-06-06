@@ -17,127 +17,59 @@
 
 package drat.proteus.services.product;
 
+import backend.FileConstants;
 import drat.proteus.services.general.AbstractRestService;
 import drat.proteus.services.constants.ProteusEndpointConstants;
 import drat.proteus.services.general.Item;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.wicketstuff.rest.utils.http.HttpMethod;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXParseException;
+import org.apache.oodt.cas.filemgr.structs.Product;
+import org.apache.oodt.cas.metadata.util.PathUtils;
+import org.apache.oodt.pcs.util.FileManagerUtils;
 
-import javax.ws.rs.core.Response;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 public class BaseProductService extends AbstractRestService {
   private static final Logger LOG = Logger.getLogger(BaseProductService.class.getName());
-  private static final String PRODUCT_XML_DEMARCATING_TAG = "item";
-  private static final String PRODUCT_TITLE = "title";
-  private static final String PRODUCT_DESC = "description";
-  private static final String PRODUCT_LINK = "link";
-  private static final String PRODUCT_PUB_DATE = "pubDate";
-  private static final String PRODUCT_CAS_SOURCE = "cas:source";
-  private static final String PRODUCT_SOURCE = "source";
-  private static final String PRODUCT_CHANNEL_PARAM = "channel";
-  private static final String PRODUCT_TYPE_ID_PARAM = "id";
+  private final FileManagerUtils fileManagerUtils;
 
   public BaseProductService() {
     super(ProteusEndpointConstants.Services.FILE_MANAGER_PRODUCT);
-
+    fileManagerUtils = new FileManagerUtils(
+        PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL));
   }
 
   protected List<Item> getRecentProductsByChannel(String channel) {
-    Map<String, String> params = new HashMap<>();
-    params.put(PRODUCT_CHANNEL_PARAM, channel);
-    return generateProducts(params);
+    return generateProducts(10);
   }
 
   protected List<Item> getRecentProductsByChannelAndTypeId(String channel,
       String typeId) {
-    Map<String, String> params = new HashMap<>();
-    params.put(PRODUCT_CHANNEL_PARAM, channel);
-    params.put(PRODUCT_TYPE_ID_PARAM, typeId);
-    return generateProducts(params);
+    return generateProducts(10);
   }
 
-  private List<Item> generateProducts(Map<String, String> params) {
-    Response response = this.createRequest(
-        ProteusEndpointConstants.FILE_MANAGER_PRODUCTS, params).getResponse(
-        HttpMethod.GET);
-    List<Item> products = null;
+  private List<Item> generateProducts(int topN) {
+    List<Item> products = new ArrayList<Item>();
     try {
-      String responseBody = response.readEntity(String.class);
-      if (responseBody.length() == 0) { // handles the case when there's no
-                                        // products to analyze
-        return new ArrayList<Item>();
+      List<Product> recentProducts = fileManagerUtils.safeGetTopNProducts(topN);
+      for (Product product : recentProducts) {
+        products.add(createProductItem(product));
       }
-      products = this.convertProductsFromXml(response.readEntity(String.class));
-    } catch (Exception ioe) {
-      ioe.printStackTrace();
+    } catch (Exception e) {
+      LOG.warning("Unable to get recent File Manager products: Message: "
+          + e.getLocalizedMessage());
     }
     return products;
   }
 
-  private List<Item> convertProductsFromXml(String xmlDoc) throws Exception {
-    InputSource is = new InputSource(new StringReader(xmlDoc));
-    DocumentBuilder dbFactory = null;
-    try {
-      dbFactory = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-    } catch (ParserConfigurationException pce) {
-      pce.printStackTrace();
+  private ProductItem createProductItem(Product product) {
+    String source = fileManagerUtils.getFilePath(product);
+    if (source == null) {
+      source = "";
     }
-    
-    Document doc = null;
-    List<Item> productItems = new ArrayList<Item>();
-    
-    try{
-      doc = dbFactory.parse(is);
-      doc.getDocumentElement().normalize();
-      NodeList nodes = doc.getElementsByTagName(PRODUCT_XML_DEMARCATING_TAG);
-
-      for (int i = 0; i < nodes.getLength(); i++) {
-        ProductItem item = createProductItem(nodes.item(i));
-        if (item == null) {
-          throw new IllegalStateException(
-              "RSS Product Service API Feed Malformed");
-        }
-        productItems.add(item);
-      }      
-    }
-    catch(SAXParseException e){
-      e.printStackTrace();
-      LOG.warning("Error parsing: ["+xmlDoc+"] response from base product service. Message: "+e.getMessage());
-    }
-
-    return productItems;
-  }
-
-  private ProductItem createProductItem(Node node) {
-    if (node instanceof Element) {
-      Element element = (Element) node;
-      String title = getProductXmlContent(element, PRODUCT_TITLE), description = getProductXmlContent(
-          element, PRODUCT_DESC), link = getProductXmlContent(element,
-          PRODUCT_LINK), pubDate = getProductXmlContent(element,
-          PRODUCT_PUB_DATE), casSource = getProductXmlContent(element,
-          PRODUCT_CAS_SOURCE), source = getProductXmlContent(element,
-          PRODUCT_SOURCE);
-      return new ProductItem(title, description, pubDate, link, casSource,
-          source);
-    }
-    return null; // this should never happen
-  }
-
-  private static String getProductXmlContent(Element el, String tagName) {
-    return el.getElementsByTagName(tagName).item(0).getTextContent();
+    String productType = product.getProductType() == null ? ""
+        : product.getProductType().getName();
+    return new ProductItem(product.getProductName(), productType,
+        product.getProductReceivedTime(), source, source, source);
   }
 }
