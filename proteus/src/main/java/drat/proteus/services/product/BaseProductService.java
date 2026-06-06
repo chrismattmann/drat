@@ -22,21 +22,23 @@ import drat.proteus.services.general.AbstractRestService;
 import drat.proteus.services.constants.ProteusEndpointConstants;
 import drat.proteus.services.general.Item;
 import org.apache.oodt.cas.filemgr.structs.Product;
+import org.apache.oodt.cas.filemgr.structs.Reference;
+import org.apache.oodt.cas.filemgr.system.FileManagerClient;
+import org.apache.oodt.cas.filemgr.util.RpcCommunicationFactory;
 import org.apache.oodt.cas.metadata.util.PathUtils;
-import org.apache.oodt.pcs.util.FileManagerUtils;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
 public class BaseProductService extends AbstractRestService {
   private static final Logger LOG = Logger.getLogger(BaseProductService.class.getName());
-  private final FileManagerUtils fileManagerUtils;
 
   public BaseProductService() {
     super(ProteusEndpointConstants.Services.FILE_MANAGER_PRODUCT);
-    fileManagerUtils = new FileManagerUtils(
-        PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL));
   }
 
   protected List<Item> getRecentProductsByChannel(String channel) {
@@ -50,10 +52,11 @@ public class BaseProductService extends AbstractRestService {
 
   private List<Item> generateProducts(int topN) {
     List<Item> products = new ArrayList<Item>();
-    try {
-      List<Product> recentProducts = fileManagerUtils.safeGetTopNProducts(topN);
+    try (FileManagerClient client = RpcCommunicationFactory.createClient(
+        new URL(PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL)))) {
+      List<Product> recentProducts = client.getTopNProducts(topN);
       for (Product product : recentProducts) {
-        products.add(createProductItem(product));
+        products.add(createProductItem(client, product));
       }
     } catch (Exception e) {
       LOG.warning("Unable to get recent File Manager products: Message: "
@@ -62,8 +65,8 @@ public class BaseProductService extends AbstractRestService {
     return products;
   }
 
-  private ProductItem createProductItem(Product product) {
-    String source = fileManagerUtils.getFilePath(product);
+  private ProductItem createProductItem(FileManagerClient client, Product product) {
+    String source = getFilePath(client, product);
     if (source == null) {
       source = "";
     }
@@ -71,5 +74,23 @@ public class BaseProductService extends AbstractRestService {
         : product.getProductType().getName();
     return new ProductItem(product.getProductName(), productType,
         product.getProductReceivedTime(), source, source, source);
+  }
+
+  private String getFilePath(FileManagerClient client, Product product) {
+    try {
+      if (product.getProductReferences() == null) {
+        product.setProductReferences(client.getProductReferences(product));
+      }
+      if (product.getProductReferences() == null
+          || product.getProductReferences().isEmpty()) {
+        return "";
+      }
+      Reference reference = (Reference) product.getProductReferences().get(0);
+      return new File(new URI(reference.getDataStoreReference())).getAbsolutePath();
+    } catch (Exception e) {
+      LOG.warning("Unable to resolve File Manager product path: Message: "
+          + e.getLocalizedMessage());
+      return "";
+    }
   }
 }

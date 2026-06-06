@@ -33,6 +33,8 @@ import org.wicketstuff.rest.contenthandling.json.webserialdeserial.GsonWebSerial
 import org.wicketstuff.rest.resource.AbstractRestResource;
 import org.wicketstuff.rest.utils.http.HttpMethod;
 
+import javax.ws.rs.core.Response;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -146,8 +148,13 @@ public class ServicesRestResource
 
   @MethodMapping(value = "/status/oodt/raw", httpMethod = HttpMethod.GET)
   public Object getOodtRawHealthStatus() {
-    String jsonBody = healthMonitorService.rerouteHealthMonitorData()
-        .readEntity(String.class);
+    Response response = healthMonitorService.rerouteHealthMonitorData();
+    String jsonBody;
+    try {
+      jsonBody = response.readEntity(String.class);
+    } finally {
+      response.close();
+    }
     GsonBuilder g = new GsonBuilder();
     g.serializeSpecialFloatingPointValues();
     Gson gson = g.create();

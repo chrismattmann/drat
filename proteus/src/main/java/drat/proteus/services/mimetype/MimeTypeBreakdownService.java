@@ -57,8 +57,12 @@ public class MimeTypeBreakdownService extends AbstractRestService {
     Response solrResponse = this.createRequest(
         ProteusEndpointConstants.MIME_TYPE_SELECT, queryParams).getResponse(
         HttpMethod.GET);
-    String jsonBody = solrResponse.readEntity(String.class);
-    return parseJsonBodyForMimeTypeFacet(jsonBody, limit);
+    try {
+      String jsonBody = solrResponse.readEntity(String.class);
+      return parseJsonBodyForMimeTypeFacet(jsonBody, limit);
+    } finally {
+      solrResponse.close();
+    }
   }
 
   public List<Item> parseJsonBodyForMimeTypeFacet(String json, int limit) {

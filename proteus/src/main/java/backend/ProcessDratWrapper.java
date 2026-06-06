@@ -702,6 +702,10 @@ public class ProcessDratWrapper extends GenericProcess
       e.printStackTrace();
       LOG.warning("Error wiping Solr core: [" + coreName + "]: Message: "
           + e.getLocalizedMessage());
+    } finally {
+      if (server != null) {
+        server.getHttpClient().getHttpConnectionManager().closeIdleConnections(0);
+      }
     }
   }
   

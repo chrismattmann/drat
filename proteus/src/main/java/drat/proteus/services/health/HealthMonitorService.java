@@ -88,7 +88,12 @@ public class HealthMonitorService extends AbstractRestService {
                                                           // not being on
       return false;
     }
-    String jsonBody = response.readEntity(String.class);
+    String jsonBody;
+    try {
+      jsonBody = response.readEntity(String.class);
+    } finally {
+      response.close();
+    }
     GsonBuilder g = new GsonBuilder();
     g.serializeSpecialFloatingPointValues();
     Gson gson = g.create();
@@ -124,7 +129,12 @@ public class HealthMonitorService extends AbstractRestService {
   private Item getDaemonStatus(String daemonPath) throws URISyntaxException {
     Response response = this.createRequest(daemonPath).getResponse(
         HttpMethod.GET);
-    String jsonBody = response.readEntity(String.class);
+    String jsonBody;
+    try {
+      jsonBody = response.readEntity(String.class);
+    } finally {
+      response.close();
+    }
     GsonBuilder g = new GsonBuilder();
     g.serializeSpecialFloatingPointValues();
     Gson gson = g.create();
