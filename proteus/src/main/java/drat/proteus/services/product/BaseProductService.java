@@ -17,19 +17,16 @@
 
 package drat.proteus.services.product;
 
-import backend.FileConstants;
+import backend.OodtClientPool;
 import drat.proteus.services.general.AbstractRestService;
 import drat.proteus.services.constants.ProteusEndpointConstants;
 import drat.proteus.services.general.Item;
 import org.apache.oodt.cas.filemgr.structs.Product;
 import org.apache.oodt.cas.filemgr.structs.Reference;
 import org.apache.oodt.cas.filemgr.system.FileManagerClient;
-import org.apache.oodt.cas.filemgr.util.RpcCommunicationFactory;
-import org.apache.oodt.cas.metadata.util.PathUtils;
 
 import java.io.File;
 import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -52,13 +49,16 @@ public class BaseProductService extends AbstractRestService {
 
   private List<Item> generateProducts(int topN) {
     List<Item> products = new ArrayList<Item>();
-    try (FileManagerClient client = RpcCommunicationFactory.createClient(
-        new URL(PathUtils.replaceEnvVariables(FileConstants.FILEMGR_URL)))) {
-      List<Product> recentProducts = client.getTopNProducts(topN);
-      for (Product product : recentProducts) {
-        products.add(createProductItem(client, product));
+    try {
+      FileManagerClient client = OodtClientPool.getFileManagerClient();
+      synchronized (client) {
+        List<Product> recentProducts = client.getTopNProducts(topN);
+        for (Product product : recentProducts) {
+          products.add(createProductItem(client, product));
+        }
       }
     } catch (Exception e) {
+      OodtClientPool.resetFileManagerClient();
       LOG.warning("Unable to get recent File Manager products: Message: "
           + e.getLocalizedMessage());
     }

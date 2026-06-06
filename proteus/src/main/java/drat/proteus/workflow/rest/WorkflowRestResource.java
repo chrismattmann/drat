@@ -18,20 +18,16 @@
 package drat.proteus.workflow.rest;
 
 
-import java.io.IOException;
 import java.util.logging.Logger;
 
 
+import backend.OodtClientPool;
 import org.apache.oodt.cas.metadata.Metadata;
-import org.apache.oodt.cas.metadata.util.PathUtils;
-import org.apache.oodt.pcs.util.WorkflowManagerUtils;
 import org.wicketstuff.rest.annotations.MethodMapping;
 import org.wicketstuff.rest.annotations.parameters.RequestBody;
 import org.wicketstuff.rest.contenthandling.json.webserialdeserial.GsonWebSerialDeserial;
 import org.wicketstuff.rest.resource.AbstractRestResource;
 import org.wicketstuff.rest.utils.http.HttpMethod;
-
-import backend.FileConstants;
 
 /**
  * This is where all the rest apis related to workflow in drat are declared
@@ -48,16 +44,15 @@ public class WorkflowRestResource extends AbstractRestResource<GsonWebSerialDese
     @MethodMapping(value = "/dynamic", httpMethod = HttpMethod.POST)
     public String performDynamicWorkFlow(@RequestBody DynamicWorkflowRequestWrapper requestBody ) {
    
-        try (WorkflowManagerUtils workflowManagerUtils =
-                 new WorkflowManagerUtils(PathUtils.replaceEnvVariables(FileConstants.CLIENT_URL))) {
+        try {
             Metadata metaData = new Metadata();
             LOG.info(requestBody.taskIds.get(0));
-            workflowManagerUtils.getClient().executeDynamicWorkflow(requestBody.taskIds,metaData);
+            synchronized (OodtClientPool.class) {
+                OodtClientPool.getWorkflowManagerClient().executeDynamicWorkflow(requestBody.taskIds,metaData);
+            }
             return "OK";
-        }catch(IOException ex) {
-            LOG.info("Workflow Service Error " + ex.getMessage());
-            return "Connectiing to Server Eroor";
         }catch(Exception ex) {
+            OodtClientPool.resetWorkflowManagerClient();
             LOG.info("Workflow Service Error " + ex.getMessage());
             return "Failed to connect to client Url";
         }
