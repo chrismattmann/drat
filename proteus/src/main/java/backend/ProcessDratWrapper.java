@@ -32,7 +32,6 @@ import org.apache.solr.client.solrj.impl.CommonsHttpSolrServer;
 import org.apache.oodt.cas.filemgr.structs.Product;
 import org.apache.oodt.cas.filemgr.structs.ProductPage;
 import org.apache.oodt.cas.filemgr.structs.ProductType;
-import org.apache.oodt.cas.filemgr.tools.DeleteProduct;
 import org.apache.oodt.cas.filemgr.tools.SolrIndexer;
 import org.apache.oodt.cas.metadata.util.PathUtils;
 import org.apache.oodt.pcs.util.FileManagerUtils;
@@ -522,7 +521,6 @@ public class ProcessDratWrapper extends GenericProcess
 
   private synchronized void wipeProductType(String productTypeName) {
     FileManagerUtils fileManagerUtils = getFileManagerUtils();
-    DeleteProduct dp = new DeleteProduct(fileManagerUtils.getFmUrl().toString(), true);
     ProductType type = fileManagerUtils.safeGetProductTypeByName(productTypeName);
     if (type == null) {
       LOG.warning("Unable to get product type definition for: ["
@@ -537,7 +535,17 @@ public class ProcessDratWrapper extends GenericProcess
           + "]: wiping [" + String.valueOf(page.getTotalPages())
           + "] pages of products: pageSize: [" + page.getPageSize() + "].");
       for (Product product : page.getPageProducts()) {
-        dp.remove(product.getProductId());
+        try {
+          LOG.info("Removing File Manager product catalog entry: ["
+              + product.getProductId() + "] name: [" + product.getProductName()
+              + "] type: [" + productTypeName + "]");
+          fileManagerUtils.getFmgrClient().removeProduct(product);
+        } catch (Exception e) {
+          LOG.warning("Unable to remove File Manager product: ["
+              + product.getProductId() + "] name: [" + product.getProductName()
+              + "] type: [" + productTypeName + "]: Message: "
+              + e.getLocalizedMessage());
+        }
       }
 
       if (page.isLastPage()) {
