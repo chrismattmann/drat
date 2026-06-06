@@ -24,7 +24,6 @@ import java.util.logging.Logger;
 
 import org.apache.oodt.cas.metadata.Metadata;
 import org.apache.oodt.cas.metadata.util.PathUtils;
-import org.apache.oodt.cas.workflow.system.WorkflowManagerClient;
 import org.apache.oodt.pcs.util.WorkflowManagerUtils;
 import org.wicketstuff.rest.annotations.MethodMapping;
 import org.wicketstuff.rest.annotations.parameters.RequestBody;
@@ -41,23 +40,19 @@ public class WorkflowRestResource extends AbstractRestResource<GsonWebSerialDese
     
     
     private static final long serialVersionUID = -5885885059043262485L;
-    WorkflowManagerClient wm;
-    
-    
-    
     private static final Logger LOG = Logger.getLogger(WorkflowRestResource.class.getName());
     public WorkflowRestResource() {
         super(new GsonWebSerialDeserial());
-        wm =  new WorkflowManagerUtils(PathUtils.replaceEnvVariables(FileConstants.CLIENT_URL)).getClient();
     }
     
     @MethodMapping(value = "/dynamic", httpMethod = HttpMethod.POST)
     public String performDynamicWorkFlow(@RequestBody DynamicWorkflowRequestWrapper requestBody ) {
    
-        try {
+        try (WorkflowManagerUtils workflowManagerUtils =
+                 new WorkflowManagerUtils(PathUtils.replaceEnvVariables(FileConstants.CLIENT_URL))) {
             Metadata metaData = new Metadata();
             LOG.info(requestBody.taskIds.get(0));
-            wm.executeDynamicWorkflow(requestBody.taskIds,metaData);
+            workflowManagerUtils.getClient().executeDynamicWorkflow(requestBody.taskIds,metaData);
             return "OK";
         }catch(IOException ex) {
             LOG.info("Workflow Service Error " + ex.getMessage());

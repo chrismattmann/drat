@@ -395,13 +395,25 @@ public class ProcessDratWrapper extends GenericProcess
         }
         catch(TimeoutException e) {
           workflowRunLog.logInfo("Drat::Checking Workflows:: Timeout exception: "+e.getLocalizedMessage());          
-          workflowInstances = Collections.EMPTY_LIST;          
+          timeoutWorkflowInst.cancel(true);
+          workflowInstances = Collections.EMPTY_LIST;
         }
         finally {
-          try {
-            instCheckThread.join();
+          if (instCheckThread != null) {
+            try {
+              instCheckThread.join(DRAT_PROCESS_WAIT_DURATION);
+            }
+            catch(InterruptedException ignore) {
+              Thread.currentThread().interrupt();
+            }
           }
-          catch(InterruptedException ignore) {}
+          try {
+            workflowManagerUtils.close();
+          }
+          catch(IOException e) {
+            workflowRunLog.logInfo("Drat::Checking Workflows:: Unable to close WorkflowManagerUtils: "
+                + e.getLocalizedMessage());
+          }
         }
        
         for(WorkflowInstance instance : workflowInstances){

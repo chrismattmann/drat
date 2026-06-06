@@ -107,6 +107,7 @@ fi
 
 if [ "$1" = "start" ]; then
   pushd $DRAT_HOME/bin
+  ulimit -n 65536 >/dev/null 2>&1 || ulimit -n 16384 >/dev/null 2>&1 || true
   cleanup_stale_pid "../filemgr/run/cas.filemgr.pid"
   cleanup_stale_pid "../workflow/run/cas.workflow.pid"
   cleanup_stale_pid "../resmgr/run/cas.resmgr.pid"
