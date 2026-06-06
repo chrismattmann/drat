@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -558,19 +559,10 @@ public class ProcessDratWrapper extends GenericProcess
   private void versionControlCheck() throws Exception {
     if (path.startsWith("http://") || path.startsWith("https://")) {
       this.body.loc_url = this.path;
-      String projectName = null;
-      boolean git = path.endsWith(".git");
+      String projectName = getRemoteProjectName(path);
+      boolean git = isGitRemoteUrl(path);
       File tmpDir = new File(FileConstants.DRAT_CLONES);
       String tmpDirPath = tmpDir.getCanonicalPath();
-      String line = null;
-      if (git) {
-        projectName = path.substring(path.lastIndexOf("/") + 1,
-                path.lastIndexOf("."));
-        line = "git clone --depth 1 --branch master " + path;
-      } else {
-        projectName = path.substring(path.lastIndexOf("/") + 1);
-        line = "svn export " + path;
-      }
       String clonePath = tmpDirPath + File.separator + projectName;
       File cloneDir = new File(clonePath);
       if (cloneDir.isDirectory() && cloneDir.exists()) {
@@ -581,10 +573,19 @@ public class ProcessDratWrapper extends GenericProcess
       LOG.info("Cloning Git / SVN project: [" + projectName + "] remote repo: ["
               + path + "] into " + tmpDirPath);
       
-      CommandLine cmdLine = CommandLine.parse(line);
-      DefaultExecutor executor = new DefaultExecutor();
-      executor.setWorkingDirectory(tmpDir);
-      int exitValue = executor.execute(cmdLine);
+      CommandLine cmdLine;
+      if (git) {
+        cmdLine = new CommandLine("git");
+        cmdLine.addArgument("clone");
+        cmdLine.addArgument("--depth");
+        cmdLine.addArgument("1");
+        cmdLine.addArgument(normalizeGitRemoteUrl(path));
+      } else {
+        cmdLine = new CommandLine("svn");
+        cmdLine.addArgument("export");
+        cmdLine.addArgument(path);
+      }
+      executeRemoteCheckout(cmdLine, tmpDir);
       
       if (git) {
         String gitHiddenDirPath = clonePath + File.separator + ".git";
@@ -600,6 +601,72 @@ public class ProcessDratWrapper extends GenericProcess
       
       this.body.id = "id:"+this.path;
       this.body.repo = this.path;
+  }
+
+  private String getRemoteProjectName(String remotePath) throws Exception {
+    String cleanedPath = remotePath;
+    int queryIndex = cleanedPath.indexOf('?');
+    if (queryIndex > -1) {
+      cleanedPath = cleanedPath.substring(0, queryIndex);
+    }
+    while (cleanedPath.endsWith("/")) {
+      cleanedPath = cleanedPath.substring(0, cleanedPath.length() - 1);
+    }
+
+    String projectName = cleanedPath.substring(cleanedPath.lastIndexOf("/") + 1);
+    if (projectName.endsWith(".git")) {
+      projectName = projectName.substring(0, projectName.length() - ".git".length());
+    }
+    if (projectName.trim().isEmpty()) {
+      throw new IOException("Unable to infer project name from remote URL: " + remotePath);
+    }
+    return projectName;
+  }
+
+  private boolean isGitRemoteUrl(String remotePath) {
+    if (remotePath.endsWith(".git")) {
+      return true;
+    }
+
+    try {
+      String host = new URI(remotePath).getHost();
+      if (host == null) {
+        return false;
+      }
+      host = host.toLowerCase();
+      return host.equals("github.com")
+          || host.equals("gitlab.com")
+          || host.equals("bitbucket.org")
+          || host.equals("gitbox.apache.org");
+    } catch (Exception e) {
+      LOG.warning("Unable to parse remote URL host: [" + remotePath + "]: "
+          + e.getLocalizedMessage());
+      return false;
+    }
+  }
+
+  private String normalizeGitRemoteUrl(String remotePath) {
+    if (remotePath.startsWith("http://github.com/")) {
+      return "https://" + remotePath.substring("http://".length());
+    }
+    return remotePath;
+  }
+
+  private void executeRemoteCheckout(CommandLine cmdLine, File workingDirectory)
+      throws IOException {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    DefaultExecutor executor = new DefaultExecutor();
+    executor.setWorkingDirectory(workingDirectory);
+    executor.setStreamHandler(new PumpStreamHandler(outputStream));
+    try {
+      executor.execute(cmdLine);
+    } catch (IOException e) {
+      String output = outputStream.toString(Charset.defaultCharset().name());
+      LOG.warning("Remote checkout failed. Command: [" + cmdLine + "] output: ["
+          + output + "]");
+      throw new IOException("Remote checkout failed for command: [" + cmdLine
+          + "]. Output: [" + output + "]", e);
+    }
   }
 
   private synchronized void wipeInstanceRepo() {
