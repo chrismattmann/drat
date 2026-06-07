@@ -197,6 +197,7 @@ the License.
                   :headers="license.headers"
                   :items="sortedfiles"
                   :search="search"
+                  :custom-filter="customFilterFiles"
                 >
                   <template slot="items" slot-scope="props">
                     <td class="text-xs-left">{{props.index+1 }}</td>
@@ -307,8 +308,22 @@ import store from './../store/store';
         this.dialog =true;     
         //this.selectedItem = this.docs[index];
         this.selectedItem = item;
+        this.search = '';
         this.loadLicenseData();
         this.loadFileDetails();
+      },
+      customFilterFiles(items, search){
+        var normalizedSearch = (search || '').toString().trim().toLowerCase();
+        if(!normalizedSearch){
+          return items;
+        }
+
+        return items.filter(file => {
+          return ['id', 'mimetype', 'license', 'header'].some(field => {
+            var value = file[field];
+            return value != null && value.toString().toLowerCase().includes(normalizedSearch);
+          });
+        });
       },
       loadData(){
           axios.get(this.origin+"/solr/statistics/select?q=type:project&wt=json")
@@ -385,7 +400,7 @@ import store from './../store/store';
                     if(this.license.unknown) listToReturn.push(file);
                     break;
 
-                  case "Standard":
+                  case "Standards":
                       if(this.license.standard) listToReturn.push(file);
                       break;
                   case "Binaries":
