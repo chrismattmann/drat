@@ -156,9 +156,10 @@ public class ProcessDratWrapper extends GenericProcess
       String crawlerId = "MetExtractorProductCrawler";
       System.setProperty("DRAT_EXCLUDE","");
       FileSystemXmlApplicationContext appContext = null;
+      MetExtractorProductCrawler crawler = null;
       try {
         appContext = new FileSystemXmlApplicationContext("file:" + beanRepo);
-        MetExtractorProductCrawler crawler = new MetExtractorProductCrawler();
+        crawler = new MetExtractorProductCrawler();
         crawler.setApplicationContext(appContext);
         crawler.setId(crawlerId);
         crawler.setMetExtractor("org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor");
@@ -170,6 +171,14 @@ public class ProcessDratWrapper extends GenericProcess
         crawlLog.logInfo("Starting. ",null);
         crawler.crawl();
       } finally {
+        if (crawler != null) {
+          try {
+            crawler.shutdown();
+          } catch (IOException e) {
+            crawlLog.logWarning("Unable to shutdown crawler cleanly",
+                e.getLocalizedMessage());
+          }
+        }
         if (appContext != null) {
           appContext.close();
         }
@@ -377,7 +386,8 @@ public class ProcessDratWrapper extends GenericProcess
                 new Callable<List<WorkflowInstance>>() {
                   @Override
                   public List<WorkflowInstance> call() throws Exception {
-                    return OodtClientPool.getWorkflowManagerClient().getWorkflowInstances();
+                    return OodtClientPool.withWorkflowManagerClient(
+                        client -> client.getWorkflowInstances());
                   }
                 }
         );
@@ -395,13 +405,11 @@ public class ProcessDratWrapper extends GenericProcess
         }
         catch(ExecutionException e) {
           workflowRunLog.logInfo("Drat::Checking Workflows:: Execution exception: "+e.getLocalizedMessage());
-          OodtClientPool.resetWorkflowManagerClient();
           workflowInstances = Collections.EMPTY_LIST;              
         }
         catch(TimeoutException e) {
           workflowRunLog.logInfo("Drat::Checking Workflows:: Timeout exception: "+e.getLocalizedMessage());          
           timeoutWorkflowInst.cancel(true);
-          OodtClientPool.resetWorkflowManagerClient();
           workflowInstances = Collections.EMPTY_LIST;
         }
         finally {

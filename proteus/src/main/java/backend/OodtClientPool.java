@@ -18,6 +18,14 @@ public final class OodtClientPool {
   private OodtClientPool() {
   }
 
+  public interface FileManagerOperation<T> {
+    T execute(FileManagerClient client) throws Exception;
+  }
+
+  public interface WorkflowManagerOperation<T> {
+    T execute(WorkflowManagerClient client) throws Exception;
+  }
+
   public static synchronized FileManagerClient getFileManagerClient()
       throws MalformedURLException, ConnectionException {
     if (fileManagerClient == null) {
@@ -33,6 +41,26 @@ public final class OodtClientPool {
           PathUtils.replaceEnvVariables(FileConstants.CLIENT_URL));
     }
     return workflowManagerUtils.getClient();
+  }
+
+  public static synchronized <T> T withFileManagerClient(
+      FileManagerOperation<T> operation) throws Exception {
+    try {
+      return operation.execute(getFileManagerClient());
+    } catch (Exception e) {
+      resetFileManagerClient();
+      throw e;
+    }
+  }
+
+  public static synchronized <T> T withWorkflowManagerClient(
+      WorkflowManagerOperation<T> operation) throws Exception {
+    try {
+      return operation.execute(getWorkflowManagerClient());
+    } catch (Exception e) {
+      resetWorkflowManagerClient();
+      throw e;
+    }
   }
 
   public static synchronized void resetFileManagerClient() {

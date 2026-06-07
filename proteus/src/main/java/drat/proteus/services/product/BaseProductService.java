@@ -50,15 +50,14 @@ public class BaseProductService extends AbstractRestService {
   private List<Item> generateProducts(int topN) {
     List<Item> products = new ArrayList<Item>();
     try {
-      FileManagerClient client = OodtClientPool.getFileManagerClient();
-      synchronized (client) {
+      OodtClientPool.withFileManagerClient(client -> {
         List<Product> recentProducts = client.getTopNProducts(topN);
         for (Product product : recentProducts) {
           products.add(createProductItem(client, product));
         }
-      }
+        return null;
+      });
     } catch (Exception e) {
-      OodtClientPool.resetFileManagerClient();
       LOG.warning("Unable to get recent File Manager products: Message: "
           + e.getLocalizedMessage());
     }

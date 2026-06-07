@@ -47,12 +47,12 @@ public class WorkflowRestResource extends AbstractRestResource<GsonWebSerialDese
         try {
             Metadata metaData = new Metadata();
             LOG.info(requestBody.taskIds.get(0));
-            synchronized (OodtClientPool.class) {
-                OodtClientPool.getWorkflowManagerClient().executeDynamicWorkflow(requestBody.taskIds,metaData);
-            }
+            OodtClientPool.withWorkflowManagerClient(client -> {
+                client.executeDynamicWorkflow(requestBody.taskIds,metaData);
+                return null;
+            });
             return "OK";
         }catch(Exception ex) {
-            OodtClientPool.resetWorkflowManagerClient();
             LOG.info("Workflow Service Error " + ex.getMessage());
             return "Failed to connect to client Url";
         }

@@ -31,6 +31,7 @@ import java.net.URISyntaxException;
 import java.util.Map;
 
 public class HealthMonitorService extends AbstractRestService {
+  private static final long HEALTH_CACHE_TTL_MILLIS = 5000L;
   private static final String FM_URL = "http://localhost:9000";
   private static final String FM_GENERIC_FILE = "GenericFile";
 
@@ -53,6 +54,9 @@ public class HealthMonitorService extends AbstractRestService {
       + RES_MGR_ABBR;
 
   private ProcessDratWrapper dratWrapper;
+  private static long cachedHealthMillis;
+  private static int cachedHealthStatus;
+  private static String cachedHealthBody;
 
   public HealthMonitorService() {
     super(ProteusEndpointConstants.Services.HEALTH_MONITOR);
@@ -61,18 +65,34 @@ public class HealthMonitorService extends AbstractRestService {
 
   // Simple function to make a JAX-RS call to the OODT PCS-Health service and
   // route it to /proteus/service/health instead
-  public Response rerouteHealthMonitorData() {
-    Response response;
+  public synchronized Response rerouteHealthMonitorData() {
+    long now = System.currentTimeMillis();
+    if (cachedHealthBody != null
+        && now - cachedHealthMillis < HEALTH_CACHE_TTL_MILLIS) {
+      return Response.status(cachedHealthStatus).entity(cachedHealthBody).build();
+    }
+
+    Response response = null;
     try {
       response = this.createRequest(
           ProteusEndpointConstants.HEALTH_STATUS_REPORT).getResponse(
           HttpMethod.GET);
+      cachedHealthStatus = response.getStatus();
+      cachedHealthBody = response.readEntity(String.class);
+      cachedHealthMillis = now;
+      return Response.status(cachedHealthStatus).entity(cachedHealthBody).build();
     } catch (Exception e) {
-      response = Response.serverError().build();
+      cachedHealthStatus = Response.Status.INTERNAL_SERVER_ERROR.getStatusCode();
+      cachedHealthBody = "";
+      cachedHealthMillis = now;
+      return Response.serverError().entity(cachedHealthBody).build();
       // if response has an exception, let's assume that OODT cannot be accessed
       // (aka it's been stopped/not started)
+    } finally {
+      if (response != null) {
+        response.close();
+      }
     }
-    return response;
   }
 
   public String getDratStatus() {

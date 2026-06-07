@@ -24,13 +24,12 @@ public class FileManagerRestResource extends AbstractRestResource<GsonWebSerialD
   public FileManagerProgressResponse getProgress() throws Exception {
     FileManagerProgressResponse response = new FileManagerProgressResponse();
     try {
-      FileManagerClient client = OodtClientPool.getFileManagerClient();
-      synchronized (client) {
+      OodtClientPool.withFileManagerClient(client -> {
         ProductType type = client.getProductTypeByName("GenericFile");
         response.crawledFiles = type == null ? 0 : client.getNumProducts(type);
-      }
+        return null;
+      });
     } catch (Exception ex) {
-      OodtClientPool.resetFileManagerClient();
       LOG.warning("Unable to get File Manager progress: " + ex.getMessage());
       response.crawledFiles = 0;
     }
