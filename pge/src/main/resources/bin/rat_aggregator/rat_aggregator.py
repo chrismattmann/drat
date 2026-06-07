@@ -31,6 +31,7 @@ import json
 import glob
 import hashlib
 import requests
+from collections import Counter
 
 
 def parse_license(s):
@@ -112,64 +113,11 @@ def main(argv=None):
       print(usage)
       sys.exit()
 
-   totalNotes = 0
-   totalBinaries = 0
-   totalArchives = 0
-   totalStandards = 0
-   totalApache = 0
-   totalGenerated = 0
-   totalUnknown = 0
-
-   for file in argv:
-      (notes, binaries, archives,standards,apachelicensed,generated,unknown) = parseFile(file)
-      totalNotes = totalNotes + notes
-      totalBinaries = totalBinaries + binaries
-      totalArchives = totalArchives + archives
-      totalStandards = totalStandards + standards
-      totalApache = totalApache + apachelicensed
-      totalGenerated = totalGenerated + generated
-      totalUnknown = totalUnknown + unknown
-
-   #Additionally
-   stats = {}
-   stats["license_Notes"] = totalNotes
-   stats["license_Binaries"] = totalBinaries
-   stats["license_Archives"] = totalArchives
-   stats["license_Standards"] = totalStandards
-   stats["license_Apache"] = totalApache
-   stats["license_Generated"] = totalGenerated
-   stats["license_Unknown"] = totalUnknown
-
-
-   
-   stats['id'] =rep["repo"]
    retVal = True
 
    if retVal:
       # Copy Data with datetime variables above, extract output from RatAggregate file, extract data from Solr Core
       #print("\nCopying data to Solr and Output Directory...\n")
-
-      # Extract data from Solr
-      neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=python&indent=true")
-
-      response = eval(connection.text)
-      mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
-
-      for i in range(0, len(mime_count), 2):
-         if mime_count[i].split("/")[0] not in neg_mimetype:
-            stats["mime_" + mime_count[i]] = mime_count[i + 1]
-
-
-      # Count the number of files
-      stats["files"] = count_num_files(rep["repo"], ".git")
-
-      # Write data into Solr
-      stats["type"] = 'software'
-      stats_data = []
-      stats_data.append(stats)
-      json_data = json.dumps(stats_data)
-      index_solr(json_data)
 
       # Parse RAT logs
       rat_logs_dir = os.getenv("DRAT_HOME") + "/data/archive/rat/*/*.log"
@@ -227,6 +175,24 @@ def main(argv=None):
          parsedHeaders = True
          parsedLicenses = True
 
+      #Additionally
+      stats = {}
+      stats['id'] =rep["repo"]
+
+      # Extract data from Solr
+      neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
+      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=python&indent=true")
+
+      response = eval(connection.text)
+      mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
+
+      for i in range(0, len(mime_count), 2):
+         if mime_count[i].split("/")[0] not in neg_mimetype:
+            stats["mime_" + mime_count[i]] = mime_count[i + 1]
+
+
+      # Count the number of files
+      stats["files"] = count_num_files(rep["repo"], ".git")
       # Index RAT logs into Solr
       connection = requests.get(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=python&rows="
@@ -235,6 +201,7 @@ def main(argv=None):
       response = eval(connection.text)
       docs = response['response']['docs']
       file_data = []
+      unique_file_data = {}
       batch = 100
       dc = 0
 
@@ -255,6 +222,9 @@ def main(argv=None):
          fdata['license'] = rat_license[fileId]
          if fileId in rat_header:
             fdata['header'] = rat_header[fileId]
+         unique_file_data[fdata['id']] = fdata
+
+      for fdata in unique_file_data.values():
          file_data.append(fdata)
          dc += 1
          if dc % batch == 0:
@@ -265,6 +235,32 @@ def main(argv=None):
          json_data = json.dumps(file_data)
          index_solr(json_data)
 
+      license_counts = Counter(fdata["license"] for fdata in unique_file_data.values())
+      totalNotes = license_counts["Notes"]
+      totalBinaries = license_counts["Binaries"]
+      totalArchives = license_counts["Archives"]
+      totalApache = license_counts["Apache"]
+      totalGenerated = license_counts["Generated"]
+      totalUnknown = license_counts["Unknown"]
+      non_standard_licenses = set(["Notes", "Binaries", "Archives", "Generated"])
+      totalStandards = sum(count for license_name, count in license_counts.items()
+                           if license_name not in non_standard_licenses)
+
+      stats["license_Notes"] = totalNotes
+      stats["license_Binaries"] = totalBinaries
+      stats["license_Archives"] = totalArchives
+      stats["license_Standards"] = totalStandards
+      stats["license_Apache"] = totalApache
+      stats["license_Generated"] = totalGenerated
+      stats["license_Unknown"] = totalUnknown
+
+      # Write data into Solr
+      stats["type"] = 'software'
+      stats_data = []
+      stats_data.append(stats)
+      json_data = json.dumps(stats_data)
+      index_solr(json_data)
+
       # Copying data to Output Directory
       print ("Notes,Binaries,Archives,Standards,Apache,Generated,Unknown")
       print(str(totalNotes)+","+str(totalBinaries)+","+str(totalArchives)+","+str(totalStandards)+","+str(totalApache)+"    ,"+str(totalGenerated)+","+str(totalUnknown))
@@ -274,5 +270,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
-
