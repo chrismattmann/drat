@@ -10,7 +10,9 @@
   <!-- How to run the PGE -->
   <exe dir="[JobDir]" shell="/bin/bash">
      <cmd>export PATH=$HOME/bin/:${PATH}</cmd>
-     <cmd>rat() { java -jar "$(ls [DRAT_HOME]/rat/lib/apache-rat-[0-9]*.jar | head -n 1)" "$1"; }</cmd>
+     <cmd>RAT_JAR=$(ls [DRAT_HOME]/rat/lib/apache-rat-*.jar | grep -v -- '-api-' | grep -v -- '-core-' | grep -v -- '-tasks-' | head -n 1)</cmd>
+     <cmd>if [ -z "$RAT_JAR" ]; then echo "Unable to locate Apache RAT jar in [DRAT_HOME]/rat/lib"; exit 2; fi</cmd>
+     <cmd>rat() { java -jar "$RAT_JAR" "$1"; }</cmd>
      <cmd>echo "Creating working dirs"</cmd>
      <cmd>mkdir -p [JobInputDir] ; mkdir -p [JobOutputDir]; mkdir -p [JobLogDir]</cmd>
      <!-- <cmd>echo "Staging input to [JobInputDir]"</cmd>
@@ -18,7 +20,7 @@
      <cmd>FSEP="_|_"</cmd>
      <cmd>bash [DRAT_HOME]/pge/bin/rat_audit/copy_files.sh ${FILELIST} "${FSEP}" "[JobInputDir]"</cmd>-->
      <cmd>echo "Running Apache RAT on [JobInputDir]"</cmd>
-     <cmd>rat [JobInputDir] > [JobOutputDir]/rat_[MimeType]_[DateMilis].log</cmd>
+     <cmd>rat [JobInputDir] > [JobOutputDir]/rat_[MimeType]_[DateMilis].log || echo "Apache RAT exited $?"</cmd>
   </exe>
 
   <!-- Files to ingest -->
