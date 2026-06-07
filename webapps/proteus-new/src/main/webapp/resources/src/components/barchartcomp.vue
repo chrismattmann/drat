@@ -41,7 +41,7 @@ import store from './../store/store'
     store,
     mounted() {
         this.timerClearvar = setInterval(function () {
-          if(this.currentState=="MAP" || this.currentState=="REDUCE")this.loadData();
+          if(this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
         
     },
@@ -61,10 +61,17 @@ import store from './../store/store'
     },
     methods: {
         loadData(){
-          
-          axios.get(this.origin+"/proteus/service/repo/breakdown/license")
+          if(this.currentRepo=='')return;
+          var query = 'id:"' + this.currentRepo + '"';
+          axios.get(this.origin + '/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=1&fl=license_*&wt=json')
             .then(response=>{
-              this.licenseTypes=response.data;
+              var docs = response.data.response.docs;
+              if(docs.length==0){
+                this.licenseTypes=[];
+                this.init();
+                return;
+              }
+              this.licenseTypes=this.buildLicenseBreakdown(docs[0]);
               this.init();
             })
             .catch(error=>{
@@ -72,6 +79,26 @@ import store from './../store/store'
               throw error;
             })
             
+        },
+        buildLicenseBreakdown(doc){
+          var out = [];
+          var total = 0;
+          for(var key in doc){
+            if(key.indexOf("license_")==0){
+              total += doc[key];
+            }
+          }
+          if(total==0)return out;
+          for(key in doc){
+            if(key.indexOf("license_")==0 && doc[key]>0){
+              out.push({
+                type:key.split("license_")[1],
+                numberOfObjects:doc[key],
+                weight:doc[key] / total
+              });
+            }
+          }
+          return out;
         },
         init(){
           var  svg = d3.select("#barsvg"),
@@ -151,6 +178,9 @@ import store from './../store/store'
       },
       currentState(){
         return store.state.currentActionStep;
+      },
+      currentRepo(){
+        return store.state.currentRepo;
       }
     }
 }

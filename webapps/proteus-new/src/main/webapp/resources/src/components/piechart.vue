@@ -39,7 +39,7 @@ import store from './../store/store';
     props: [],
     mounted() {
         this.timerClearVar = setInterval(function () {
-          if(this.currentState=="INDEX")this.loadData();
+          if(this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
     },
     beforeDestroy(){
@@ -54,7 +54,6 @@ import store from './../store/store';
       translateLegend(d,i){
           var x = 0;
           var y = 0;
-          var legend = d3.select("#piesvg");
           for(var j=0;j<i;j++){
             x += (this.data[j].type.length) * 5 + 50;
             if(x>250){
@@ -68,6 +67,7 @@ import store from './../store/store';
         
         var svg = d3.select("#piesvg");
           svg.selectAll("*").remove();
+        d3.select("#pielegend").selectAll("*").remove();
         var width = +svg.attr("width"),
             height = +svg.attr("height"),
             radius = Math.min(width, height) / 2,
@@ -115,16 +115,44 @@ import store from './../store/store';
         
       },
       loadData(){
-        axios.get(this.origin+"/proteus/service/repo/breakdown/mime?limit=5")
+        axios.get(this.origin+"/solr/drat/select?q=producttype:GenericFile&rows=0&facet=true&facet.field=mimetype&wt=json")
             .then(response=>{
-              this.$log.info(response.data);
-              this.data=response.data;
+              this.data=this.buildMimeBreakdown(response.data, 5);
               this.init();
             })
             .catch(error=>{
               
               throw error;
             })
+      },
+      buildMimeBreakdown(data, limit){
+        var facetFields = data.facet_counts && data.facet_counts.facet_fields;
+        if(!facetFields || !facetFields.mimetype)return [];
+        var values = facetFields.mimetype;
+        var out = [];
+        var total = 0;
+        for(var i=0;i<values.length;i+=2){
+          if(values[i].indexOf("/")>=0){
+            total += values[i+1];
+          }
+        }
+        var requireFullMime = total>0;
+        if(total==0){
+          for(i=0;i<values.length;i+=2){
+            total += values[i+1];
+          }
+        }
+        if(total==0)return out;
+        for(i=0;i<values.length && out.length<limit;i+=2){
+          if(values[i+1]>0 && (!requireFullMime || values[i].indexOf("/")>=0)){
+            out.push({
+              type:values[i],
+              numberOfObjects:values[i+1],
+              weight:values[i+1] / total
+            });
+          }
+        }
+        return out;
       }
     },
     computed: {
