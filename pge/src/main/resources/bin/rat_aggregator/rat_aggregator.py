@@ -37,12 +37,12 @@ def parse_license(s):
    li_dict = {'N': 'Notes', 'B': 'Binaries', 'A': 'Archives', 'AL': 'Apache', '!?????': 'Unknown'}
    if s and not s.isspace():
       arr = s.split(b"/", 1)
-      li = arr[0].strip()
+      li = arr[0].strip().decode('utf-8')
       if li in li_dict:
          li = li_dict[li]
 
       if len(arr) > 1 and len(arr[1].split(b"/")) > 0:
-         return [arr[1].split(b"/")[-1], li]
+         return [arr[1].split(b"/")[-1].decode('utf-8'), li]
       else:
          #print('split not correct during license parsing '+str(arr))
          return ["/dev/null", li_dict['!?????']]
@@ -214,7 +214,7 @@ def main(argv=None):
                   if b'=====================================================' in line or b'== File:' in line:
                      h += 1
                   if h == 2:
-                     cur_file = line.split(b"/")[-1].strip()
+                     cur_file = line.split(b"/")[-1].strip().decode('utf-8')
                   if h == 3:
                      cur_header += line.decode('utf-8')
                   if h == 4:
@@ -274,6 +274,5 @@ def main(argv=None):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
 
 
