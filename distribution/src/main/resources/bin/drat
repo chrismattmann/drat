@@ -52,7 +52,8 @@ function crawl {
     check_services_running
     if [[ "${1:-}" == "--exclude" ]]; then
 	check_num_args "crawl" $# 3
-	export DRAT_EXCLUDE=".*${2}.*"
+	EXCLUDE_PATTERN=$(printf '%s' "$2" | sed 's/[][\/.^$*+?(){}|]/\\&/g')
+	export DRAT_EXCLUDE=".*(^|/)${EXCLUDE_PATTERN}(/|$).*"
 	PRODUCT_PATH=$3
     else
     	check_num_args "crawl" $# 1
@@ -168,6 +169,24 @@ function check_services_running {
     
 }
 
+function solr_delete_all {
+    local core=$1
+    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:8080/solr/${core}/update?commit=true" \
+        --data-binary '<delete><query>*:*</query></delete>' > /dev/null
+}
+
+# Reset the live services before a full command-line run. This mirrors the
+# Proteus go path, which resets before crawl/index/map/reduce.
+function reset_running {
+    check_services_running
+    echo "Resetting live DRAT state"
+    curl -sf -X POST "http://${OODT_HOST}:8080/proteus/drat/reset" > /dev/null
+    solr_delete_all drat
+    solr_delete_all statistics
+    rm -rf "$DRAT_HOME/data/archive/"*
+    rm -rf "$DRAT_HOME/data/jobs/"*
+}
+
 # Attempt to automate crawling, indexing, mapping, and reducing. Expects 1 argument: the directory to analyze.
 function go {
     check_services_running
@@ -178,6 +197,7 @@ function go {
         check_num_args "go" $# 1
         PRODUCT_PATH=$1
     fi
+    reset_running
     echo "Crawling $PRODUCT_PATH"
     crawl $1 $2 $3
     sleep 3

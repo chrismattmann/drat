@@ -90,6 +90,12 @@ def count_num_files(path, exclude):
             count += 1
    return count
 
+def is_current_repo_file(fullpath, current_repo):
+   try:
+      return os.path.commonpath([os.path.realpath(fullpath), current_repo]) == current_repo
+   except ValueError:
+      return False
+
 def index_solr(json_data):
    #print(json_data)
    request = Request(os.getenv("SOLR_URL") + "/statistics/update/json?commit=true")
@@ -106,6 +112,7 @@ def main(argv=None):
       for line in repoFile:
           data+=line.decode('utf-8')
    rep = eval(data)
+   current_repo = os.path.realpath(rep["repo"])
    
    index_solr(json.dumps([rep]))
 
@@ -195,8 +202,12 @@ def main(argv=None):
       stats["files"] = count_num_files(rep["repo"], ".git")
       # Index RAT logs into Solr
       connection = requests.get(os.getenv("SOLR_URL") +
+                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=python&rows=0&indent=true")
+      response = eval(connection.text)
+      num_found = response['response']['numFound']
+      connection = requests.get(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=python&rows="
-                                + str(stats["files"]) +"&indent=true")
+                                + str(num_found) +"&indent=true")
 
       response = eval(connection.text)
       docs = response['response']['docs']
@@ -208,6 +219,8 @@ def main(argv=None):
       for doc in docs:
          fdata = {}
          fdata['id'] = os.path.join(doc['filelocation'][0], doc['filename'][0])
+         if not is_current_repo_file(fdata['id'], current_repo):
+            continue
          m = hashlib.md5(fdata['id'].encode('utf-8'))
          hashId = m.hexdigest()
          fileId = hashId+"-"+doc['filename'][0]

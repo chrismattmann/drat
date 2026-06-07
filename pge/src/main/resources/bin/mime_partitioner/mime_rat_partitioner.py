@@ -40,6 +40,23 @@ def get_drat_home():
         return drat_home
     return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 
+def get_current_repo():
+    repo_file_url = os.path.join(get_drat_home(), "data", "repo")
+    try:
+        with open(repo_file_url, 'r') as repo_file:
+            repo = eval(repo_file.read())
+            return os.path.realpath(repo["repo"])
+    except Exception:
+        return None
+
+def is_current_repo_file(fullpath, current_repo):
+    if current_repo is None:
+        return True
+    try:
+        return os.path.commonpath([os.path.realpath(fullpath), current_repo]) == current_repo
+    except ValueError:
+        return False
+
 def execute_dynamic_workflow(workflowUrl, taskIds, metadata):
     cmd = [
         os.path.join(get_drat_home(), "workflow", "bin", "wmgr-client"),
@@ -53,7 +70,7 @@ def execute_dynamic_workflow(workflowUrl, taskIds, metadata):
     ] + metadata.get("InputFiles", [])
     subprocess.check_call(cmd)
 
-def executeRatJobs(url, num, type, workflowUrl, taskIds):
+def executeRatJobs(url, num, type, workflowUrl, taskIds, current_repo):
     # for i = 0 to count(records) i+=num
     # json = query Solr with solrPostFix.replace($type, type)
     # build filepath list
@@ -88,12 +105,15 @@ def executeRatJobs(url, num, type, workflowUrl, taskIds):
             if not filelocation.endswith("/"):
                 filelocation = filelocation + "/"
             fullpath = filelocation + filename
+            if not is_current_repo_file(fullpath, current_repo):
+                continue
             if "InputFiles" not in metadata:
                 metadata["InputFiles"] = []
             metadata["InputFiles"].append(fullpath)
 
-        print("Metadata is "+str(metadata))
-        execute_dynamic_workflow(workflowUrl, taskIds, metadata)
+        if "InputFiles" in metadata:
+            print("Metadata is "+str(metadata))
+            execute_dynamic_workflow(workflowUrl, taskIds, metadata)
         
 
 def get_mime_types(solrUrl):
@@ -139,11 +159,12 @@ def main(argv):
 
 
    print("Configured SOLR url: ["+solrUrl+"]")
+   current_repo = get_current_repo()
    mimeTypes = get_mime_types(solrUrl)
 
    for type in mimeTypes:
        print("Executing RAT for MIME: ["+type+"]: num files per job: ["+str(numFilesPerJob)+"]")
-       executeRatJobs(solrUrl, numFilesPerJob, type, workflowUrl, ratTaskId)
+       executeRatJobs(solrUrl, numFilesPerJob, type, workflowUrl, ratTaskId, current_repo)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
