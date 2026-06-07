@@ -322,24 +322,31 @@ function delstats {
 # Start parsing the arguments.
 case $1 in
     crawl)
-        crawl $2 $3 $4
+        shift
+        crawl "$@"
     ;;
     index)
-        index $2
+        shift
+        index "$@"
     ;;
     map)
+        shift
         map
     ;;
     reduce)
+        shift
         reduce
     ;;
     go)
-        go $2 $3 $4
+        shift
+        go "$@"
     ;;
     reset)
+        shift
         reset
     ;;
     delstats)
+        shift
 	delstats
     ;;
     help)
