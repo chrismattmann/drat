@@ -277,7 +277,7 @@ public class ProcessDratWrapper extends GenericProcess
     resetLog.logInfo("DRAT: reset: wiping WM instance repository.");
     this.wipeInstanceRepo();
 
-    String[] coreNames = {"drat"}; // don't wipe stats or we can't aggregate data.
+    String[] coreNames = {"drat", "statistics"};
     for(String coreName: coreNames){
 	       resetLog.logInfo("DRAT: reset: wiping Solr core: [" + coreName + "]");
 	       this.wipeSolrCore(coreName);
