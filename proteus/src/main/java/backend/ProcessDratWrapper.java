@@ -250,6 +250,15 @@ public class ProcessDratWrapper extends GenericProcess
 
   @Override
   public synchronized void reset() {
+    reset(false);
+  }
+
+  @Override
+  public synchronized void fullReset() {
+    reset(true);
+  }
+
+  private synchronized void reset(boolean includeStats) {
     DratLog resetLog = new DratLog("RESET");
     resetLog.logInfo("Starting","");
     resetLog.logInfo("DRAT: reset: wiping FM product catalog");
@@ -277,7 +286,7 @@ public class ProcessDratWrapper extends GenericProcess
     resetLog.logInfo("DRAT: reset: wiping WM instance repository.");
     this.wipeInstanceRepo();
 
-    String[] coreNames = {"drat", "statistics"};
+    String[] coreNames = includeStats ? new String[] {"drat", "statistics"} : new String[] {"drat"};
     for(String coreName: coreNames){
 	       resetLog.logInfo("DRAT: reset: wiping Solr core: [" + coreName + "]");
 	       this.wipeSolrCore(coreName);

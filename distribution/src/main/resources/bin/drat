@@ -26,14 +26,14 @@ function print_help {
     echo "Usage: drat [crawl, index, map, reduce] in order to analyze a repository." 
     echo "       Alternatively, call 'drat go' to run all four automatically."
     echo "       drat"
-    echo "            go [--exclude <file/directory name>] <path to repo> 	| start OODT and analyze the repository"
+    echo "            go [--full-wipe] [--exclude <file/directory name>] <path to repo>"
+    echo "                                                                   | start OODT and analyze the repository"
     echo "            crawl [--exclude <file/directory name>] <path to repo>	| crawl the repository files"
     echo "            index <path to repo>  					| index the crawled files"
     echo "            map                   					| fire off the MapReduce mapper"
     echo "            reduce                					| fire off the MapReduce reducer"
     echo "            help                  					| print this message"
-    echo "            reset                 					| prepare to analyze an entirely new repo"
-    echo "                                  					| CAUTION: will delete previous crawls!"
+    echo "            reset                 					| clear runtime crawl state, preserving DRAT stats"
     echo "            delstats                                                    | clear collected DRAT stats index"
 }
 
@@ -175,31 +175,74 @@ function solr_delete_all {
         --data-binary '<delete><query>*:*</query></delete>' > /dev/null
 }
 
-# Reset the live services before a full command-line run. This mirrors the
-# Proteus go path, which resets before crawl/index/map/reduce.
+# Reset the live services before a full command-line run. This clears the
+# current crawl execution state while preserving historical DRAT stats.
 function reset_running {
     check_services_running
     echo "Resetting live DRAT state"
     curl -sf -X POST "http://${OODT_HOST}:8080/proteus/drat/reset" > /dev/null
     solr_delete_all drat
-    solr_delete_all statistics
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*
+}
+
+function full_wipe_running {
+    check_services_running
+    echo "Clearing historical DRAT stats"
+    solr_delete_all statistics
 }
 
 # Attempt to automate crawling, indexing, mapping, and reducing. Expects 1 argument: the directory to analyze.
 function go {
     check_services_running
-    if [[ "${1:-}" == "--exclude" ]]; then
-        check_num_args "go" $# 3
-        PRODUCT_PATH=$3
-    else
-        check_num_args "go" $# 1
-        PRODUCT_PATH=$1
+    FULL_WIPE=false
+    EXCLUDE_VALUE=
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --full-wipe)
+                FULL_WIPE=true
+                shift
+            ;;
+            --exclude)
+                if [[ $# -lt 2 ]]; then
+                    echo "Expected an exclude value after '--exclude'."
+                    print_help
+                    exit 1
+                fi
+                EXCLUDE_VALUE=$2
+                shift 2
+            ;;
+            -*)
+                echo "Unrecognized go option: '$1'"
+                print_help
+                exit 1
+            ;;
+            *)
+                if [[ -n "${PRODUCT_PATH:-}" ]]; then
+                    echo "Expected one repo path for 'go'."
+                    print_help
+                    exit 1
+                fi
+                PRODUCT_PATH=$1
+                shift
+            ;;
+        esac
+    done
+    if [[ -z "${PRODUCT_PATH:-}" ]]; then
+        echo "Expected a repo path for 'go'."
+        print_help
+        exit 1
+    fi
+    if [[ "$FULL_WIPE" == "true" ]]; then
+        full_wipe_running
     fi
     reset_running
     echo "Crawling $PRODUCT_PATH"
-    crawl $1 $2 $3
+    if [[ -n "$EXCLUDE_VALUE" ]]; then
+        crawl --exclude "$EXCLUDE_VALUE" "$PRODUCT_PATH"
+    else
+        crawl "$PRODUCT_PATH"
+    fi
     sleep 3
     echo
     echo "Indexing $PRODUCT_PATH"
@@ -225,7 +268,7 @@ function go {
 function reset {
     check_services_running "running"
     check_num_args "reset" $# 0
-    echo "This will remove any previous or current crawls."
+    echo "This will remove runtime crawl state while preserving historical DRAT stats."
     read -p "Do you wish to continue? [yN] " yn
         case $yn in
             [Yy]*)
@@ -235,8 +278,6 @@ function reset {
                 rm -rf $DRAT_HOME/filemgr/catalog
                 echo "rm -rf $DRAT_HOME/solr/drat/data"
                 rm -rf $DRAT_HOME/solr/drat/data
-                echo "rm -rf $DRAT_HOME/solr/statistics/data"
-                rm -rf $DRAT_HOME/solr/statistics/data
                 echo "rm -rf $DRAT_HOME/data/archive/*"
                 rm -rf $DRAT_HOME/data/archive/*
                 echo "rm -rf $DRAT_HOME/data/jobs/*"

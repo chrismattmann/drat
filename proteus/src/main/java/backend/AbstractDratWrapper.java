@@ -36,6 +36,8 @@ public interface AbstractDratWrapper {
 
   public void reset() throws Exception;
 
+  public void fullReset() throws Exception;
+
   public void setIndexablePath(String path);
 
   public String getIndexablePath();

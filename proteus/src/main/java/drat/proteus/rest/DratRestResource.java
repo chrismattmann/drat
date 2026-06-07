@@ -82,6 +82,11 @@ public class DratRestResource extends AbstractRestResource<GsonWebSerialDeserial
   public void reset() throws Exception {
     dratWrapper.reset();
   }
+
+  @MethodMapping(value = "/fullReset", httpMethod = HttpMethod.POST)
+  public void fullReset() throws Exception {
+    dratWrapper.fullReset();
+  }
   
   @MethodMapping(value = "/currentrepo",httpMethod = HttpMethod.GET)
   public String currentRepo() throws Exception{
