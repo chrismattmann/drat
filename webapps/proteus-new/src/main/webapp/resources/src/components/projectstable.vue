@@ -147,7 +147,7 @@ the License.
                  <br/>
                 <v-chip close v-model="license.standard">
                   <v-avatar class="teal">{{license.docs.license_Standards}}</v-avatar>
-                  Standard
+                  Standards
                 </v-chip>
                 <v-chip close v-model="license.unknown">
                   <v-avatar class="teal">{{license.docs.license_Unknown}}</v-avatar>
@@ -393,11 +393,11 @@ import store from './../store/store';
                 
                 switch(file.license){
                   case "Apache":
-                    if(this.license.apache) listToReturn.push(file);
+                    if(this.license.apache || this.license.standard) listToReturn.push(file);
                     break;
 
                   case "Unknown":
-                    if(this.license.unknown) listToReturn.push(file);
+                    if(this.license.unknown || this.license.standard) listToReturn.push(file);
                     break;
 
                   case "Standards":
@@ -415,6 +415,9 @@ import store from './../store/store';
                       break;   
                   case "Archives":
                       if(this.license.archives) listToReturn.push(file);
+                      break;
+                  default:
+                      if(this.license.standard) listToReturn.push(file);
                       break;
                 }
               });
