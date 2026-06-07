@@ -62,6 +62,23 @@ import store from './../store/store'
     methods: {
         loadData(){
           if(this.currentRepo=='')return;
+          var query = 'parent:"' + this.currentRepo + '" AND type:file';
+          axios.get(this.origin + '/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=0&facet=true&facet.field=license&wt=json')
+            .then(response=>{
+              if(response.data.response.numFound>0){
+                this.licenseTypes=this.buildLicenseFacetBreakdown(response.data);
+                this.init();
+                return;
+              }
+              this.loadAggregateData();
+            })
+            .catch(error=>{
+              this.emptynote = error.toString();
+              throw error;
+            })
+            
+        },
+        loadAggregateData(){
           var query = 'id:"' + this.currentRepo + '"';
           axios.get(this.origin + '/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=1&fl=license_*&wt=json')
             .then(response=>{
@@ -78,7 +95,29 @@ import store from './../store/store'
               this.emptynote = error.toString();
               throw error;
             })
-            
+        },
+        buildLicenseFacetBreakdown(data){
+          var facetFields = data.facet_counts && data.facet_counts.facet_fields;
+          if(!facetFields || !facetFields.license)return [];
+          return this.buildBreakdownFromPairs(facetFields.license);
+        },
+        buildBreakdownFromPairs(values){
+          var out = [];
+          var total = 0;
+          for(var i=0;i<values.length;i+=2){
+            total += values[i+1];
+          }
+          if(total==0)return out;
+          for(i=0;i<values.length;i+=2){
+            if(values[i+1]>0){
+              out.push({
+                type:values[i],
+                numberOfObjects:values[i+1],
+                weight:values[i+1] / total
+              });
+            }
+          }
+          return out;
         },
         buildLicenseBreakdown(doc){
           var out = [];
