@@ -44,6 +44,7 @@
               <artifactId>pcs-opsui</artifactId>
               <excludes>
                 <exclude>WEB-INF/web.xml</exclude>
+                <exclude>WEB-INF/lib/slf4j-log4j12-*.jar</exclude>
               </excludes>              
             </overlay>
           </overlays>

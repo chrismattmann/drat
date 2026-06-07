@@ -56,7 +56,7 @@ the License.
           status:"IDLE",
           crawled:false,
           indexed:false,
-          maped:false,
+          mapped:false,
           reduced:false,
           completed:false,
           timerClearVar:''
@@ -87,7 +87,7 @@ the License.
               store.commit("setCurrentActionStep","REDUCE");
               this.value=75;
             }else if(response.data=="IDLE"){
-              if(this.currentActionRequest=="GO" && this.reduced){
+              if(this.currentActionRequest=="GO" && (this.reduced || this.mapped || this.indexed || this.crawled)){
                 this.completed=true;
               }else if(this.currentActionRequest=="INDEX" && this.indexed){
                 this.completed = true;
