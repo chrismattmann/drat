@@ -7,7 +7,7 @@
     parent, which configures ASF release staging and Nexus, is not inherited.
   -->
 
-  <groupId>org.apache.drat</groupId>
+  <groupId>ai.mattmann.drat</groupId>
   <artifactId>dms</artifactId>
   <name>DRAT</name>
   <packaging>pom</packaging>

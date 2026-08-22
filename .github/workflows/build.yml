@@ -49,9 +49,8 @@ jobs:
         working-directory: mnemosyne
         run: mvn -B -DskipTests -Dmaven.javadoc.skip=true clean install
 
-      # Tests run as part of install rather than a separate `mvn test`: the
-      # distribution module unpacks Tomcat at process-sources and needs the
-      # war artifacts, which the test phase alone does not produce.
+      # install rather than test, so the packaged distribution exists for the
+      # assertions below. `mvn test` on its own also works.
       - name: Build and test DRAT
         working-directory: drat
         run: mvn -B clean install
