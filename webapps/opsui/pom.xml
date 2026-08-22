@@ -40,7 +40,7 @@
         <configuration>
           <overlays>
             <overlay>
-              <groupId>org.apache.oodt</groupId>
+              <groupId>ai.mattmann.mnemosyne</groupId>
               <artifactId>pcs-opsui</artifactId>
               <excludes>
                 <exclude>WEB-INF/web.xml</exclude>
@@ -55,7 +55,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.oodt</groupId>
+      <groupId>ai.mattmann.mnemosyne</groupId>
       <artifactId>pcs-opsui</artifactId>
       <version>${oodt.version}</version>
       <type>war</type>

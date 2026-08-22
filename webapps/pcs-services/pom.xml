@@ -41,7 +41,7 @@
           <failOnMissingWebXml>false</failOnMissingWebXml>
           <overlays>
             <overlay>
-              <groupId>org.apache.oodt</groupId>
+              <groupId>ai.mattmann.mnemosyne</groupId>
               <artifactId>pcs-services</artifactId>
             </overlay>
           </overlays>
@@ -52,7 +52,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.oodt</groupId>
+      <groupId>ai.mattmann.mnemosyne</groupId>
       <artifactId>pcs-services</artifactId>
       <version>${oodt.version}</version>
       <type>war</type>

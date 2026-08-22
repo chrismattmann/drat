@@ -1,24 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>21</version>
-    <relativePath />
-  </parent>
+  <!--
+    apache/drat was retired to the Apache Attic and its repository is archived.
+    This project continues at chrismattmann/drat, so the org.apache:apache
+    parent, which configures ASF release staging and Nexus, is not inherited.
+  -->
 
   <groupId>org.apache.drat</groupId>
   <artifactId>dms</artifactId>
-  <name>Apache DRAT</name>
+  <name>DRAT</name>
   <packaging>pom</packaging>
-  <description>The Apache Distributed Release Auditing Tool (DRAT).</description>
+  <description>DRAT, the Distributed Release Auditing Tool.</description>
   <version>1.1-SNAPSHOT</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <oodt.version>1.10-SNAPSHOT</oodt.version>
+    <oodt.version>1.11.0</oodt.version>
     <junit.version>4.12</junit.version>
     <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
     <maven.javadoc.plugin.version>3.11.2</maven.javadoc.plugin.version>
@@ -122,10 +121,15 @@
 
 
   <scm>
-    <connection>scm:git:git@github.com:apache/drat.git</connection>
-    <developerConnection>scm:git:git@github.com:apache/drat.git</developerConnection>
-    <url>http://github.com/apache/drat</url>
+    <connection>scm:git:https://github.com/chrismattmann/drat.git</connection>
+    <developerConnection>scm:git:https://github.com/chrismattmann/drat.git</developerConnection>
+    <url>https://github.com/chrismattmann/drat</url>
     <tag>HEAD</tag>
   </scm>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/chrismattmann/drat/issues</url>
+  </issueManagement>
 
 </project>
