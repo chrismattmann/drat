@@ -1,0 +1,14 @@
+backend
+drat.proteus
+drat.proteus.filemgr.rest
+drat.proteus.rest
+drat.proteus.services.breakdown
+drat.proteus.services.constants
+drat.proteus.services.general
+drat.proteus.services.health
+drat.proteus.services.licenses
+drat.proteus.services.mimetype
+drat.proteus.services.product
+drat.proteus.workflow.rest
+org.apache.oodt.cas.metadata.preconditions
+org.apache.oodt.cas.pge.staging
