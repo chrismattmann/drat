@@ -11,16 +11,20 @@ on:
 
 jobs:
   build:
-    name: JDK 21 Build
+    name: JDK 21 Build and Test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out OODT
+      # DRAT depends on Mnemosyne, the continuation of Apache OODT after the
+      # ASF retired it to the Attic. Built from source until
+      # ai.mattmann.mnemosyne:1.11.0 is published to Maven Central, at which
+      # point this checkout and install step can be dropped.
+      - name: Check out Mnemosyne
         uses: actions/checkout@v4
         with:
-          repository: chrismattmann/oodt
+          repository: chrismattmann/mnemosyne
           ref: master
-          path: oodt
+          path: mnemosyne
 
       - name: Check out DRAT
         uses: actions/checkout@v4
@@ -41,13 +45,36 @@ jobs:
           cache: npm
           cache-dependency-path: drat/webapps/proteus-new/src/main/webapp/resources/package-lock.json
 
-      - name: Install modernized OODT snapshot
-        working-directory: oodt
-        run: mvn -B -DskipTests clean install
+      - name: Install Mnemosyne 1.11.0
+        working-directory: mnemosyne
+        run: mvn -B -DskipTests -Dmaven.javadoc.skip=true clean install
 
-      - name: Build DRAT
+      # Tests run as part of install rather than a separate `mvn test`: the
+      # distribution module unpacks Tomcat at process-sources and needs the
+      # war artifacts, which the test phase alone does not produce.
+      - name: Build and test DRAT
         working-directory: drat
-        run: mvn -B -DskipTests clean install
+        run: mvn -B clean install
+
+      - name: Check the distribution contents
+        working-directory: drat
+        run: |
+          set -e
+          TARBALL=$(ls distribution/target/dms-distribution-*-bin.tar.gz)
+
+          # Java 9 removed the extension mechanism; any launcher still naming
+          # it fails at startup. Assert the scan is non-vacuous first so a
+          # wildcard matching nothing cannot pass silently.
+          LAUNCHERS=$(tar tzf "$TARBALL" | grep -cE '^[^/]+/bin/[^/]+$')
+          echo "scanning $LAUNCHERS launcher scripts"
+          test "$LAUNCHERS" -gt 10
+          ! tar xzOf "$TARBALL" --wildcards '*/bin/*' 2>/dev/null | grep -q 'java.ext.dirs'
+
+          # Tomcat ships bin/*.sh non-executable through the fileSet unless
+          # they are re-added with an explicit mode.
+          tar tvzf "$TARBALL" | grep -E 'tomcat/bin/catalina.sh' | grep -q '^-rwx'
+
+          echo "distribution contents OK"
 
       - name: Upload DRAT distribution
         uses: actions/upload-artifact@v4

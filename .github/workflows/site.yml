@@ -1,0 +1,102 @@
+name: Site
+
+on:
+  push:
+    branches:
+      - master
+    # The landing page is hand-maintained on the asf-site branch. Only
+    # regenerate when something that feeds the published API docs changes.
+    paths:
+      - '**/src/main/java/**'
+      - '**/pom.xml'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+# Pushing the regenerated docs back to the site branch.
+permissions:
+  contents: write
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish API docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Mnemosyne
+        uses: actions/checkout@v4
+        with:
+          repository: chrismattmann/mnemosyne
+          ref: master
+          path: mnemosyne
+
+      - name: Check out DRAT
+        uses: actions/checkout@v4
+        with:
+          path: drat
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Install Mnemosyne 1.11.0
+        working-directory: mnemosyne
+        run: mvn -B -DskipTests -Dmaven.javadoc.skip=true clean install
+
+      # distribution is excluded: it unpacks Tomcat at process-sources and
+      # needs war artifacts that a javadoc-only invocation never builds.
+      # failOnError is off because this is a long-lived codebase whose javadoc
+      # predates the stricter JDK 21 doclint; a malformed comment should not
+      # stop the site from publishing.
+      - name: Generate aggregate javadoc
+        working-directory: drat
+        run: |
+          mvn -B javadoc:aggregate \
+            -DskipTests \
+            -Dmaven.javadoc.failOnError=false \
+            -pl '!distribution'
+
+      - name: Verify the docs were actually produced
+        working-directory: drat
+        run: |
+          set -e
+          test -f target/reports/apidocs/index.html
+          COUNT=$(find target/reports/apidocs -type f | wc -l)
+          echo "generated $COUNT files"
+          # Guard against publishing an empty directory over a working site.
+          test "$COUNT" -gt 50
+
+      - name: Check out the site branch
+        uses: actions/checkout@v4
+        with:
+          ref: asf-site
+          path: site
+
+      - name: Stage the docs into the site
+        run: |
+          set -e
+          rm -rf site/apidocs
+          mkdir -p site/apidocs
+          cp -R drat/target/reports/apidocs/. site/apidocs/
+          # .nojekyll keeps GitHub Pages from stripping javadoc's underscore
+          # directories, which would break the generated navigation.
+          touch site/.nojekyll
+
+      - name: Commit and push if anything changed
+        working-directory: site
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "API docs unchanged; nothing to publish."
+            exit 0
+          fi
+          git commit -m "Publish API docs from ${GITHUB_SHA::8}"
+          git push origin asf-site
