@@ -19,6 +19,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <oodt.version>1.11.0</oodt.version>
     <junit.version>4.12</junit.version>
+    <maven.enforcer.plugin.version>3.5.0</maven.enforcer.plugin.version>
     <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
     <maven.javadoc.plugin.version>3.11.2</maven.javadoc.plugin.version>
     <maven.surefire.plugin.version>3.5.3</maven.surefire.plugin.version>
@@ -48,6 +49,43 @@
     <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
     <testSourceDirectory>${basedir}/src/test</testSourceDirectory>
     <plugins>
+      <!--
+        DRAT depends on Mnemosyne, which keeps its Java packages as
+        org.apache.oodt.*. Its classes therefore share fully-qualified names
+        with the retired org.apache.oodt artifacts still on Maven Central.
+        Maven treats those as unrelated artifacts because the groupIds differ,
+        so dependency mediation will not collapse them: if one reaches the tree
+        transitively, the classpath silently carries two copies of every class.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven.enforcer.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce-no-retired-oodt</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>org.apache.oodt:*</exclude>
+                  </excludes>
+                  <message>
+                    org.apache.oodt artifacts are the retired Apache OODT
+                    release line, superseded by ai.mattmann.mnemosyne. Exclude
+                    them where they enter the tree rather than relaxing this
+                    rule.
+                  </message>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
