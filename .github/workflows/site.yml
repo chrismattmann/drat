@@ -26,13 +26,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out Mnemosyne
-        uses: actions/checkout@v4
-        with:
-          repository: chrismattmann/mnemosyne
-          ref: master
-          path: mnemosyne
-
       - name: Check out DRAT
         uses: actions/checkout@v4
         with:
@@ -44,10 +37,6 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-
-      - name: Install Mnemosyne 1.11.0
-        working-directory: mnemosyne
-        run: mvn -B -DskipTests -Dmaven.javadoc.skip=true clean install
 
       # distribution is excluded: it unpacks Tomcat at process-sources and
       # needs war artifacts that a javadoc-only invocation never builds.

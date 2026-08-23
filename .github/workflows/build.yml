@@ -15,17 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # DRAT depends on Mnemosyne, the continuation of Apache OODT after the
-      # ASF retired it to the Attic. Built from source until
-      # ai.mattmann.mnemosyne:1.11.0 is published to Maven Central, at which
-      # point this checkout and install step can be dropped.
-      - name: Check out Mnemosyne
-        uses: actions/checkout@v4
-        with:
-          repository: chrismattmann/mnemosyne
-          ref: master
-          path: mnemosyne
-
+      # Mnemosyne resolves from Maven Central as
+      # ai.mattmann.mnemosyne:1.11.0; nothing to build from source.
       - name: Check out DRAT
         uses: actions/checkout@v4
         with:
@@ -44,10 +35,6 @@ jobs:
           node-version: '18'
           cache: npm
           cache-dependency-path: drat/webapps/proteus-new/src/main/webapp/resources/package-lock.json
-
-      - name: Install Mnemosyne 1.11.0
-        working-directory: mnemosyne
-        run: mvn -B -DskipTests -Dmaven.javadoc.skip=true clean install
 
       # install rather than test, so the packaged distribution exists for the
       # assertions below. `mvn test` on its own also works.
