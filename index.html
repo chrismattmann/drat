@@ -7,7 +7,7 @@
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="css/custom.css"/>
+    <link rel="stylesheet" href="css/custom.css?v=pmc"/>
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
     <link rel="stylesheet" href="css/font-awesome.min.css">
   </head>
@@ -157,12 +157,21 @@
      </section> 
 
 
-     <section id="contributors" class="container-fluid alternate-darkbg white-text section-space">
+     <section id="contributors" class="container-fluid col-12 alternate-darkbg white-text section-space">
        <div class="container text-center breathing-space">
           <h2 class="col-sm-12 breathing-space ">Project Management Committee (PMC)</h2>
           <hr/>
-          <div class="row names">
 
+          <div class="pmc-group">
+            <h4 class="pmc-subhead">Founder and Developer</h4>
+            <div class="row names founder-row justify-content-center">
+            </div>
+          </div>
+
+          <div class="pmc-group">
+            <h4 class="pmc-subhead">Original Contributors</h4>
+            <div class="row names contributors-row justify-content-center">
+            </div>
           </div>
        </div>
      </section> 
@@ -250,7 +259,7 @@
                                 "name": "Tom Barber",
                                 "date": "2017-09-20"
                               },
-                              "chrismattmann ": {
+                              "chrismattmann": {
                                 "name": "Chris Mattmann",
                                 "date": "2017-09-20"
                               },
@@ -273,8 +282,26 @@
                             },
                             "pmc": true
                           };
-            for( var username in drat.roster){
-              $(".names").append('<div class="col-md-3 breathing-space"><a href="https://github.com/' + username + '"><img src="https://avatars.githubusercontent.com/' + username +'" width="50%"/><h5>' + drat.roster[username]["name"] + '</h5></a></div>');
+            function pmcCard(username, name, extraClass) {
+              var handle = (username || "").replace(/\s+/g, "");
+              var isFounder = extraClass && extraClass.indexOf("pmc-founder") !== -1;
+              var col = isFounder ? "col-12 col-md-4" : "col-12 col-sm-6 col-md-3";
+              var klass = col + " breathing-space pmc-person" + (extraClass ? " " + extraClass : "");
+              return '<div class="' + klass + '"><a href="https://github.com/' + handle + '">' +
+                '<img class="pmc-avatar" src="https://github.com/' + handle + '.png?size=200" alt="' + name + '"/>' +
+                '<h5>' + name + '</h5></a></div>';
+            }
+
+            var founderIds = {};
+            for (var chairId in drat.chair) {
+              founderIds[chairId.replace(/\s+/g, "").toLowerCase()] = true;
+              $(".founder-row").append(pmcCard(chairId, drat.chair[chairId].name, "pmc-founder"));
+            }
+            for (var username in drat.roster) {
+              if (founderIds[username.replace(/\s+/g, "").toLowerCase()]) {
+                continue;
+              }
+              $(".contributors-row").append(pmcCard(username, drat.roster[username]["name"]));
             }
       
     </script>
