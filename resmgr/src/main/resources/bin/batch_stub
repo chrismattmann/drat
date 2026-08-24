@@ -28,6 +28,6 @@ else
         java -cp "../lib/*" \
         -Dorg.apache.oodt.cas.pge.task.metkeys.legacyMode="true" \
         -Dorg.apache.oodt.cas.pge.task.status.legacyMode="true" \
-        org.apache.oodt.cas.resource.system.extern.XmlRpcBatchStub \
+        org.apache.oodt.cas.resource.system.extern.AvroRpcBatchStub \
         --portNum $1&
 endif
