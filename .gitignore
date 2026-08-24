@@ -22,3 +22,9 @@ webapps/proteus-new/src/main/webapp/resources/node_modules
 /.pydevproject
 /*/.pydevproject
 **/overlays/
+
+# stray project-website assets; the real ones live under webapps/ and proteus/
+/css/
+/fonts/
+/img/
+/js/
