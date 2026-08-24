@@ -20,7 +20,6 @@ See the wiki for more information on installing and running DRAT:
 * [How to run](https://github.com/chrismattmann/drat/wiki/How-to-Run)  
 * [How to re-run](https://github.com/chrismattmann/drat/wiki/Re-running-DRAT)  
 * [How to interact with DRAT](https://github.com/chrismattmann/drat/wiki/Interacting-with-DRAT)  
-* [Vagrant setup](https://github.com/chrismattmann/drat/wiki/Vagrant)
 * [Excluding files from analysis](https://github.com/chrismattmann/drat/wiki/RegEx-exclude-file)
 * [Running DRAT on multiple repositories](https://github.com/chrismattmann/drat/wiki/DRAT-Sequential)
 * [Running the DRAT Proteus GUI](https://github.com/chrismattmann/drat/wiki/Proteus---A-GUI-for-DRAT)
