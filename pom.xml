@@ -153,7 +153,7 @@
     <module>pge</module>
     <module>solr</module>
     <module>webapps</module>
-    <module>proteus</module>
+    <module>proteus-services</module>
     <module>distribution</module>
   </modules>
 

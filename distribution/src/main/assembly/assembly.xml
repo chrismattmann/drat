@@ -119,9 +119,9 @@
         <exclude>${groupId}:${parent.artifactId}-pcs-services</exclude>
         <exclude>${groupId}:${parent.artifactId}-fmprod</exclude>
         <exclude>${groupId}:${parent.artifactId}-solr-webapp</exclude>
-        <exclude>${groupId}:${parent.artifactId}-proteus</exclude>
+        <exclude>${groupId}:${parent.artifactId}-proteus-services</exclude>
         <exclude>${groupId}:${parent.artifactId}-viz</exclude>
-	<exclude>${groupId}:${parent.artifactId}-proteus-new</exclude>
+	<exclude>${groupId}:${parent.artifactId}-proteus</exclude>
         <exclude>org.apache.tika:tika-app</exclude>
       </excludes>
     </dependencySet>
