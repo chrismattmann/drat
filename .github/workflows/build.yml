@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: '18'
           cache: npm
-          cache-dependency-path: drat/webapps/proteus-new/src/main/webapp/resources/package-lock.json
+          cache-dependency-path: drat/webapps/proteus/src/main/webapp/resources/package-lock.json
 
       # install rather than test, so the packaged distribution exists for the
       # assertions below. `mvn test` on its own also works.

@@ -101,12 +101,14 @@ public class DratRestResource {
   
   @GET
   @Path("/currentrepo")
+  @Produces(MediaType.TEXT_PLAIN)
   public String currentRepo() throws Exception{
     return dratWrapper.getIndexablePath();
   }
 
   @GET
   @Path("/log")
+  @Produces(MediaType.TEXT_PLAIN)
   public String getProcessLog() {
     File log = new File(FileConstants.DRAT_TEMP_LOG_OUTPUT);
     if (log.exists()) {

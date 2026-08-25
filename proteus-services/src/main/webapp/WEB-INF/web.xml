@@ -33,12 +33,7 @@
     <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
     <init-param>
       <param-name>jaxrs.serviceClasses</param-name>
-      <param-value>
-        drat.proteus.rest.DratRestResource
-        drat.proteus.rest.ServicesRestResource
-        drat.proteus.workflow.rest.WorkflowRestResource
-        drat.proteus.filemgr.rest.FileManagerRestResource
-      </param-value>
+      <param-value>drat.proteus.rest.DratRestResource,drat.proteus.rest.ServicesRestResource,drat.proteus.workflow.rest.WorkflowRestResource,drat.proteus.filemgr.rest.FileManagerRestResource</param-value>
     </init-param>
     <init-param>
       <param-name>jaxrs.providers</param-name>

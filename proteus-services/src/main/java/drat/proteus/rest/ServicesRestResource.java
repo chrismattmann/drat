@@ -153,6 +153,7 @@ public class ServicesRestResource {
 
   @GET
   @Path("/status/drat")
+  @Produces(MediaType.TEXT_PLAIN)
   public String getDratRunningStatus() {
     return healthMonitorService.getDratStatus().toUpperCase();
   }

@@ -46,7 +46,8 @@ public class WorkflowRestResource {
     }
     
     @POST
-  @Path("/dynamic")
+    @Path("/dynamic")
+    @Produces(MediaType.TEXT_PLAIN)
     public String performDynamicWorkFlow(DynamicWorkflowRequestWrapper requestBody ) {
    
         try {
