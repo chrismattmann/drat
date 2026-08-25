@@ -106,7 +106,7 @@
     </dependency>
     <dependency>
       <groupId>ai.mattmann.drat</groupId>
-      <artifactId>dms-proteus</artifactId>
+      <artifactId>dms-proteus-services</artifactId>
       <version>${project.parent.version}</version>
       <type>war</type>
     </dependency>
@@ -118,7 +118,7 @@
     </dependency>
     <dependency>
       <groupId>ai.mattmann.drat</groupId>
-      <artifactId>dms-proteus-new</artifactId>
+      <artifactId>dms-proteus</artifactId>
       <version>${project.parent.version}</version>
       <type>war</type>
     </dependency>
@@ -191,10 +191,10 @@
                 </artifactItem>                
                 <artifactItem>
                   <groupId>ai.mattmann.drat</groupId>
-                  <artifactId>${project.parent.artifactId}-proteus</artifactId>
+                  <artifactId>${project.parent.artifactId}-proteus-services</artifactId>
                   <type>war</type>
                   <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/proteus</outputDirectory>
+                  <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/proteus-services</outputDirectory>
                 </artifactItem>
                 <artifactItem>
                   <groupId>ai.mattmann.drat</groupId>
@@ -205,12 +205,47 @@
                 </artifactItem>
 		<artifactItem>
                   <groupId>ai.mattmann.drat</groupId>
-                  <artifactId>${project.parent.artifactId}-proteus-new</artifactId>
+                  <artifactId>${project.parent.artifactId}-proteus</artifactId>
                   <type>war</type>
                   <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/proteus-new</outputDirectory>
+                  <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/proteus</outputDirectory>
                 </artifactItem>                
               </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!--
+        Replaces Tomcat's welcome page with a redirect to /proteus, the Vue
+        application. Done here rather than in the assembly descriptor: the
+        archive keeps the first file added for a given path, so Tomcat's own
+        ROOT/index.jsp wins there. Overwriting it in the unpacked Tomcat
+        during prepare-package means the assembly picks up the replacement.
+        Declared after maven-dependency-plugin on purpose: plugins bound to the
+        same phase run in declaration order, and the Tomcat unpack would
+        otherwise put the stock page back.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>root-redirect</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/ROOT</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${basedir}/src/main/resources/tomcat/webapps/ROOT</directory>
+                  <includes>
+                    <include>index.jsp</include>
+                  </includes>
+                </resource>
+              </resources>
             </configuration>
           </execution>
         </executions>
