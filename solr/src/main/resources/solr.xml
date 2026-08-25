@@ -15,21 +15,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
-
 <!--
- All (relative) paths are relative to the installation path
-  
-  persistent: Save changes made via the API to this file
-  sharedLib: path to a lib directory that will be shared across all cores
+  Solr replaced the <cores> element with core discovery: it walks this
+  directory and adopts anything containing a core.properties. The drat and
+  statistics cores are declared by their own core.properties instead.
 -->
-<solr persistent="false">
+<solr>
 
-  <!--
-  adminPath: RequestHandler path to manage cores.  
-    If 'null' (or absent), cores will not be manageable via request handler
-  -->
-  <cores adminPath="/admin/cores">
-    <core name="drat" instanceDir="drat" />
-    <core name="statistics" instanceDir="statistics" />
-  </cores>
+  <str name="sharedLib">${solr.sharedLib:}</str>
+
+  <shardHandlerFactory name="shardHandlerFactory" class="HttpShardHandlerFactory">
+    <int name="socketTimeout">${socketTimeout:600000}</int>
+    <int name="connTimeout">${connTimeout:60000}</int>
+  </shardHandlerFactory>
+
 </solr>
