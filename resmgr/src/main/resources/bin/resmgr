@@ -87,6 +87,7 @@ if [ "$1" = "start" ]; then
   cd "$RESMGR_HOME"/bin
 
   "$_RUNJAVA" $JAVA_OPTS $OODT_OPTS \
+    -Dlog4j.configurationFile="$RESMGR_HOME"/etc/log4j2.xml \
     -Djava.util.logging.config.file="$RESMGR_HOME"/etc/logging.properties \
     -Dorg.apache.oodt.cas.resource.properties="$RESMGR_HOME"/etc/resource.properties \
     -Djava.io.tmpdir="$OODT_TMPDIR" \
