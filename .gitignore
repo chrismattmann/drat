@@ -27,3 +27,6 @@ webapps/proteus-new/src/main/webapp/resources/node_modules
 /fonts/
 /img/
 /js/
+
+# stray console output
+nohup.out
