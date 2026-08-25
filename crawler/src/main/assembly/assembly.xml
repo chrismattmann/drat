@@ -34,6 +34,7 @@
       <outputDirectory>crawler/etc</outputDirectory>
       <includes>
         <include>**.properties</include>
+        <include>**.xml</include>
       </includes>
     </fileSet>
     <fileSet>

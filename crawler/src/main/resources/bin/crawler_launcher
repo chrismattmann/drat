@@ -68,6 +68,7 @@ fi
 cd "$CRAWLER_HOME"/bin
 
 "$_RUNJAVA" $JAVA_OPTS $OODT_OPTS \
+   -Dlog4j.configurationFile="$CRAWLER_HOME"/etc/log4j2.xml \
    -Djava.util.logging.config.file="$CRAWLER_HOME"/etc/logging.properties \
    -Dorg.apache.oodt.cas.filemgr.properties="$FILEMGR_HOME"/etc/filemgr.properties \
    -Dorg.apache.oodt.cas.crawl.bean.repo=file:"$CRAWLER_HOME"/policy/crawler-config.xml \
