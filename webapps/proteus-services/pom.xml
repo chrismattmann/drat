@@ -22,7 +22,7 @@
                 <groupId>ai.mattmann.drat</groupId>
                 <artifactId>dms</artifactId>
                 <version>1.1-SNAPSHOT</version>
-                <relativePath>../pom.xml</relativePath>
+                <relativePath>../../pom.xml</relativePath>
         </parent>
         <name>DRAT Proteus</name>
         <artifactId>dms-proteus-services</artifactId>

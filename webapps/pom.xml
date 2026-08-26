@@ -17,5 +17,6 @@
     <module>fmprod</module>
     <module>viz</module>
     <module>proteus</module>
+    <module>proteus-services</module>
   </modules>
 </project>
