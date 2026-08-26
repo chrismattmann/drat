@@ -63,7 +63,7 @@ import store from './../store/store'
         loadData(){
           if(this.currentRepo=='')return;
           var query = 'parent:"' + this.currentRepo + '" AND type:file';
-          axios.get(this.origin + '/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=0&facet=true&facet.field=license&wt=json')
+          axios.get(this.origin + '/proteus-services/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=0&facet=true&facet.field=license&wt=json')
             .then(response=>{
               if(response.data.response.numFound>0){
                 this.licenseTypes=this.buildLicenseFacetBreakdown(response.data);
@@ -80,7 +80,7 @@ import store from './../store/store'
         },
         loadAggregateData(){
           var query = 'id:"' + this.currentRepo + '"';
-          axios.get(this.origin + '/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=1&fl=license_*&wt=json')
+          axios.get(this.origin + '/proteus-services/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=1&fl=license_*&wt=json')
             .then(response=>{
               var docs = response.data.response.docs;
               if(docs.length==0){

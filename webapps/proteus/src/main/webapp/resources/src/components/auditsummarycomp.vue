@@ -55,11 +55,11 @@ the License.
 
             var rowCount = 0;
 
-          axios.get(this.origin + '/solr/statistics/select?q=type:software&fl=license_*,id&sort=id+asc&wt=json')
+          axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&fl=license_*,id&sort=id+asc&wt=json')
           .then(response2=>{
               rowCount = response2.data.response.numFound;
                if(response2.data.response.numFound!=null){
-                axios.get(this.origin + '/solr/statistics/select?q=type:software&rows='+rowCount+'&fl=license_*,id&sort=id+asc&wt=json')
+                axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&rows='+rowCount+'&fl=license_*,id&sort=id+asc&wt=json')
                 .then(response=>{
               
 

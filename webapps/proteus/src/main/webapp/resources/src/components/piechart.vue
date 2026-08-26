@@ -115,7 +115,7 @@ import store from './../store/store';
         
       },
       loadData(){
-        axios.get(this.origin+"/solr/drat/select?q=producttype:GenericFile&rows=0&facet=true&facet.field=mimetype&wt=json")
+        axios.get(this.origin+"/proteus-services/solr/drat/select?q=producttype:GenericFile&rows=0&facet=true&facet.field=mimetype&wt=json")
             .then(response=>{
               this.data=this.buildMimeBreakdown(response.data, 5);
               this.init();

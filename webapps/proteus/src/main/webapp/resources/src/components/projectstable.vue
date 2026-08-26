@@ -326,14 +326,14 @@ import store from './../store/store';
         });
       },
       loadData(){
-          axios.get(this.origin+"/solr/statistics/select?q=type:project&wt=json")
+          axios.get(this.origin+"/proteus-services/solr/statistics/select?q=type:project&wt=json")
             .then(response=>{
               this.$log.info(response.data);
               this.docs=response.data.response.docs;
               this.count.numFound = response.data.response.numFound;
               this.count.start = response.data.response.start;
               if(response.data.response.numFound != null && response.data.response.numFound>10){
-                axios.get(this.origin+"/solr/statistics/select?q=type:project&rows="+this.count.numFound+"&wt=json")
+                axios.get(this.origin+"/proteus-services/solr/statistics/select?q=type:project&rows="+this.count.numFound+"&wt=json")
                   .then(response=>{
                     this.docs= response.data.response.docs;
                     this.count.numFound = response.data.response.numFound;
@@ -351,10 +351,10 @@ import store from './../store/store';
             })
       },
       loadLicenseData(){
-        axios.get(this.origin+"/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&wt=json")
+        axios.get(this.origin+"/proteus-services/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&wt=json")
           .then(response2=>{
             if(response2.data.response.numFound!=null){
-                axios.get(this.origin+"/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&rows="+response2.data.response.numFound+"&wt=json")
+                axios.get(this.origin+"/proteus-services/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&rows="+response2.data.response.numFound+"&wt=json")
                 .then(response=>{
                     this.$log.info(response.data);
                     this.license.docs=response.data.response.docs[0];
@@ -365,9 +365,9 @@ import store from './../store/store';
           })
        },
       loadFileDetails(){
-        axios.get(this.origin+"/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows=5000&wt=json")
+        axios.get(this.origin+"/proteus-services/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows=5000&wt=json")
         .then(response2=>{
-            axios.get(this.origin+"/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows="+response2.data.response.numFound+"&wt=json")
+            axios.get(this.origin+"/proteus-services/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows="+response2.data.response.numFound+"&wt=json")
             .then(response=>{
               this.sortedfiles  = response.data.response.docs;
             });

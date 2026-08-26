@@ -47,10 +47,10 @@ the License.
     },
     methods: {
       init(){
-        axios.get(this.origin + '/solr/statistics/select?q=type:software&fl=license_*&wt=json')
+        axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&fl=license_*&wt=json')
         .then(response2=>{
           if(response2.data.response.numFound!=null){
-              axios.get(this.origin + '/solr/statistics/select?q=type:software&rows='+response2.data.response.numFound+'&fl=license_*&wt=json')
+              axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&rows='+response2.data.response.numFound+'&fl=license_*&wt=json')
               .then(function(response) {
 
                 console.log(response.data);
