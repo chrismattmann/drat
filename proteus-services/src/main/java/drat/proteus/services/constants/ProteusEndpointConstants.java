@@ -19,12 +19,19 @@ package drat.proteus.services.constants;
 
 public class ProteusEndpointConstants {
   public static final String BASE_URL = "http://localhost:8080";
+
+  /**
+   * Solr runs as its own application on its own port now, rather than as a
+   * war inside the Tomcat that BASE_URL points at, so its services carry a
+   * whole URL instead of a path under BASE_URL.
+   */
+  public static final String SOLR_BASE_URL = "http://localhost:8983";
   public static final String FILE_MANAGER_PRODUCTS = "viewRecent";
   public static final String HEALTH_STATUS_REPORT = "report";
   public static final String MIME_TYPE_SELECT = "select";
 
   public static class Services {
-    public static final String MIME_TYPE_BREAKDOWN = "/solr/drat";
+    public static final String MIME_TYPE_BREAKDOWN = SOLR_BASE_URL + "/solr/drat";
     public static final String FILE_MANAGER_PRODUCT = "/opsui";
     public static final String HEALTH_MONITOR = "/pcs/services/health";
     public static final String RAT_INSTANCES_MONITOR = "/opsui/instances";
