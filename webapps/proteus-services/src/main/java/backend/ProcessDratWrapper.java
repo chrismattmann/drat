@@ -26,8 +26,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.oodt.cas.crawl.MetExtractorProductCrawler;
 import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
+import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.HttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpJdkSolrClient;
 import org.apache.oodt.cas.filemgr.structs.Product;
 import org.apache.oodt.cas.filemgr.structs.ProductPage;
 import org.apache.oodt.cas.filemgr.structs.ProductType;
@@ -737,9 +738,11 @@ public class ProcessDratWrapper extends GenericProcess
   private synchronized void wipeSolrCore(String coreName) {
     String baseUrl = "http://localhost:8983/solr";
     String finalUrl = baseUrl + "/" + coreName;
-    HttpSolrServer server = null;
+    SolrClient server = null;
     try {
-      server = new HttpSolrServer(finalUrl);
+      // HttpSolrServer is SolrJ 4 and is gone in SolrJ 10; HttpJdkSolrClient
+      // is what cas-filemgr's SolrIndexer uses against the same Solr.
+      server = new HttpJdkSolrClient.Builder(finalUrl).build();
       server.deleteByQuery("*:*");
       server.commit();
     } catch (Exception e) {
@@ -748,10 +751,12 @@ public class ProcessDratWrapper extends GenericProcess
           + e.getLocalizedMessage());
     } finally {
       if (server != null) {
-        // was getHttpClient().getHttpConnectionManager().closeIdleConnections(0),
-        // which is commons-httpclient 3.x; SolrJ 4 returns an HttpComponents
-        // client and releases its connections through shutdown()
-        server.shutdown();
+        try {
+          server.close();
+        } catch (IOException e) {
+          LOG.warning("Error closing Solr client for core: [" + coreName
+              + "]: Message: " + e.getLocalizedMessage());
+        }
       }
     }
   }
