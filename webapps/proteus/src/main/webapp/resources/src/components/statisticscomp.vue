@@ -135,7 +135,7 @@ the License.
         });
       },
       loadIndexedFiles(){
-        axios.get(this.origin+"/solr/drat/select?q=producttype:GenericFile&fl=numFound&wt=json&indent=true")
+        axios.get(this.origin+"/proteus-services/solr/drat/select?q=producttype:GenericFile&fl=numFound&wt=json&indent=true")
         .then(response=>{
           this.stat.indexedfiles = response.data.response.numFound;
         });
