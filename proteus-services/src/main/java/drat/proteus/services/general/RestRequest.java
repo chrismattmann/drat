@@ -33,9 +33,12 @@ public class RestRequest {
   }
 
   public void buildTarget(String service, String path) {
-    this.target = this.client.target(
-        ProteusEndpointConstants.BASE_URL + service).path(path);
-
+    // Services under Tomcat are paths to be hung off BASE_URL. Solr is not
+    // under Tomcat any more and names its own host, so take it as given.
+    String base = service.startsWith("http://") || service.startsWith("https://")
+        ? service
+        : ProteusEndpointConstants.BASE_URL + service;
+    this.target = this.client.target(base).path(path);
   }
 
   public WebTarget buildTarget(String service, String path,

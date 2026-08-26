@@ -14,6 +14,7 @@
  
   <properties>
     <tomcat.version>9.0.7</tomcat.version>
+    <solr.version>10.0.0</solr.version>
   </properties>
 
   <dependencies>
@@ -100,12 +101,6 @@
     </dependency>
     <dependency>
       <groupId>ai.mattmann.drat</groupId>
-      <artifactId>dms-solr-webapp</artifactId>
-      <version>${project.parent.version}</version>
-      <type>war</type>
-    </dependency>
-    <dependency>
-      <groupId>ai.mattmann.drat</groupId>
       <artifactId>dms-proteus-services</artifactId>
       <version>${project.parent.version}</version>
       <type>war</type>
@@ -181,13 +176,6 @@
                   <type>war</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/fmprod</outputDirectory>
-                </artifactItem>
-                <artifactItem>
-                  <groupId>ai.mattmann.drat</groupId>
-                  <artifactId>${project.parent.artifactId}-solr-webapp</artifactId>
-                  <type>war</type>
-                  <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}/apache-tomcat-${tomcat.version}/webapps/solr</outputDirectory>
                 </artifactItem>                
                 <artifactItem>
                   <groupId>ai.mattmann.drat</groupId>
@@ -225,6 +213,39 @@
         same phase run in declaration order, and the Tomcat unpack would
         otherwise put the stock page back.
       -->
+      <!--
+        Solr ships as a standalone application with its own Jetty; it stopped
+        publishing a war, and its distribution is not on Maven Central, so it
+        cannot be fetched with dependency:unpack the way Tomcat is above.
+        Downloaded once and cached: skipexisting keeps rebuilds from pulling
+        343MB again.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>fetch-solr</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <get src="https://archive.apache.org/dist/solr/solr/${solr.version}/solr-${solr.version}.tgz"
+                     dest="${project.build.directory}/solr-${solr.version}.tgz"
+                     skipexisting="true"
+                     verbose="false"/>
+                <untar src="${project.build.directory}/solr-${solr.version}.tgz"
+                       dest="${project.build.directory}"
+                       compression="gzip"/>
+                <chmod dir="${project.build.directory}/solr-${solr.version}/bin" perm="755" includes="*"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>

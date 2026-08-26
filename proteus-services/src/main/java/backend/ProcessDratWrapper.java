@@ -735,7 +735,7 @@ public class ProcessDratWrapper extends GenericProcess
   }
 
   private synchronized void wipeSolrCore(String coreName) {
-    String baseUrl = "http://localhost:8080/solr";
+    String baseUrl = "http://localhost:8983/solr";
     String finalUrl = baseUrl + "/" + coreName;
     HttpSolrServer server = null;
     try {

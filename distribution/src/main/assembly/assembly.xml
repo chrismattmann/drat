@@ -107,6 +107,24 @@
       <fileMode>775</fileMode>
       <directoryMode>775</directoryMode>
     </fileSet>
+    <!--
+      The Solr server, unpacked from the distribution antrun fetched. Kept
+      separate from solr/, which is the Solr home holding DRAT's cores and
+      their data: this directory is the engine and can be replaced wholesale
+      on the next Solr upgrade.
+    -->
+    <fileSet>
+      <directory>${project.build.directory}/solr-${solr.version}</directory>
+      <outputDirectory>solr-server</outputDirectory>
+      <excludes>
+        <exclude>bin/**</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.build.directory}/solr-${solr.version}/bin</directory>
+      <outputDirectory>solr-server/bin</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>
@@ -118,7 +136,6 @@
         <exclude>${groupId}:${parent.artifactId}-opsui</exclude>
         <exclude>${groupId}:${parent.artifactId}-pcs-services</exclude>
         <exclude>${groupId}:${parent.artifactId}-fmprod</exclude>
-        <exclude>${groupId}:${parent.artifactId}-solr-webapp</exclude>
         <exclude>${groupId}:${parent.artifactId}-proteus-services</exclude>
         <exclude>${groupId}:${parent.artifactId}-viz</exclude>
 	<exclude>${groupId}:${parent.artifactId}-proteus</exclude>
