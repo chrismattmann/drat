@@ -19,6 +19,7 @@ export FILEMGR_HOME=$DRAT_HOME/filemgr
 export PGE_HOME=$DRAT_HOME/pge
 export PCS_HOME=$DRAT_HOME/pcs
 export OPSUI_URL=http://localhost:8080/opsui
+export PROTEUS_URL=http://localhost:8080/proteus-services
 export SOLR_URL=http://localhost:8983/solr
 export FMPROD_HOME=$DRAT_HOME/tomcat/webapps/fmprod/WEB-INF/classes/
 export SOLR_DRAT_URL=http://localhost:8983/solr/drat

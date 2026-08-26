@@ -26,7 +26,17 @@ import javax.ws.rs.DefaultValue;
 import javax.ws.rs.core.MediaType;
 
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Vector;
 import java.util.logging.Logger;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.PathParam;
+
+import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
 
 
 import backend.OodtClientPool;
@@ -45,6 +55,42 @@ public class WorkflowRestResource {
     public WorkflowRestResource() {
     }
     
+    /**
+     * The workflow instances currently in a given state, with the TaskId from
+     * each one's shared context.
+     *
+     * dratstats.py needs exactly this to decide whether a PGE is still running,
+     * and used to get it by calling workflowmgr.getWorkflowInstancesByStatus
+     * over XML-RPC. mnemosyne#95 removed XML-RPC, which left the statistics
+     * step with no way to ask the question at all, so the statistics core was
+     * never populated and every chart on the Proteus dashboard stayed empty.
+     */
+    @GET
+    @Path("/instances/{status}")
+    public List<Map<String, Object>> instancesByStatus(@PathParam("status") String status) {
+        List<Map<String, Object>> out = new ArrayList<Map<String, Object>>();
+        try {
+            Vector instances = OodtClientPool.withWorkflowManagerClient(client ->
+                client.getWorkflowInstancesByStatus(status));
+            if (instances == null) {
+                return out;
+            }
+            for (Object o : instances) {
+                WorkflowInstance instance = (WorkflowInstance) o;
+                Map<String, Object> entry = new HashMap<String, Object>();
+                entry.put("id", instance.getId());
+                entry.put("taskIds", instance.getSharedContext() == null
+                    ? new ArrayList<String>()
+                    : instance.getSharedContext().getAllMetadata("TaskId"));
+                out.add(entry);
+            }
+        } catch (Exception e) {
+            LOG.info("Unable to list workflow instances with status [" + status
+                + "]: " + e.getMessage());
+        }
+        return out;
+    }
+
     @POST
     @Path("/dynamic")
     @Produces(MediaType.TEXT_PLAIN)

@@ -33,7 +33,7 @@ def main(argv=None):
 		data = ''
 		for line in repoFile:
 			data+=line.strip().decode('utf-8')
-	rep = eval(data)
+	rep = json.loads(data)
 
 	reponame = os.path.basename(os.path.normpath(argv[0]))
 	rep["id"] = "id:"+os.path.normpath(argv[0])
