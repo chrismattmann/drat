@@ -66,6 +66,9 @@ WORKFLOW_EXEC=wmgr
 RESMGR_EXEC=resmgr
 FILEMGR_EXEC=filemgr
 TOMCAT_EXEC=catalina.sh
+SOLR_EXEC=solr
+SOLR_SERVER_HOME="$OODT_BASE"/solr-server
+SOLR_PORT=${SOLR_PORT:-8983}
 
 cleanup_stale_pid() {
   pid_file="$1"
@@ -115,6 +118,13 @@ if [ "$1" = "start" ]; then
   nohup "$WORKFLOW_HOME"/bin/"$WORKFLOW_EXEC" start "$@" >> "$OODT_OUT" 2>&1  &
   nohup "$RESMGR_HOME"/bin/"$RESMGR_EXEC" start "$@" >> "$OODT_OUT" 2>&1  &
   nohup "$OODT_BASE"/tomcat/bin/"$TOMCAT_EXEC" start "$@" >> "$OODT_OUT" 2>&1 &
+  # Solr runs as its own application now, with its own Jetty, rather than as a
+  # war inside Tomcat. --solr-home points it at DRAT's cores; --user-managed
+  # keeps it out of SolrCloud mode, which DRAT does not use.
+  if [ -x "$SOLR_SERVER_HOME"/bin/"$SOLR_EXEC" ]; then
+    nohup "$SOLR_SERVER_HOME"/bin/"$SOLR_EXEC" start -p "$SOLR_PORT" \
+      --solr-home "$OODT_BASE"/solr --user-managed >> "$OODT_OUT" 2>&1 &
+  fi
   sleep 2
 # Print confirmation messages to the end user
 # FileManager
@@ -175,6 +185,9 @@ elif [ "$1" = "stop" ]; then
   "$WORKFLOW_HOME"/bin/"$WORKFLOW_EXEC" stop "$@" >> "$OODT_OUT" 2>&1 &
   "$RESMGR_HOME"/bin/"$RESMGR_EXEC" stop "$@" >> "$OODT_OUT" 2>&1 &
   "$OODT_BASE"/tomcat/bin/"$TOMCAT_EXEC" stop "$@" >> "$OODT_OUT" 2>&1 &
+  if [ -x "$SOLR_SERVER_HOME"/bin/"$SOLR_EXEC" ]; then
+    "$SOLR_SERVER_HOME"/bin/"$SOLR_EXEC" stop -p "$SOLR_PORT" >> "$OODT_OUT" 2>&1 &
+  fi
   popd
 else
   echo "Usage: oodt.sh ( commands ... )"
