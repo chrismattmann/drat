@@ -23,4 +23,4 @@ with open(os.getenv("DRAT_HOME")+"/conf/apache-repo-list.txt") as ar:
         repoPath = os.getenv("DRAT_HOME")+"/data/clones/"+repoBase
         repoUrl = "http://github.com/apache/"+repo.rstrip()
         repoDesc = repoName
-        print repoPath+" "+repoName+" "+repoUrl+" "+repoDesc
+        print(repoPath+" "+repoName+" "+repoUrl+" "+repoDesc)

@@ -44,7 +44,7 @@ def get_current_repo():
     repo_file_url = os.path.join(get_drat_home(), "data", "repo")
     try:
         with open(repo_file_url, 'r') as repo_file:
-            repo = eval(repo_file.read())
+            repo = json.loads(repo_file.read())
             return os.path.realpath(repo["repo"])
     except Exception:
         return None
@@ -76,8 +76,11 @@ def executeRatJobs(url, num, type, workflowUrl, taskIds, current_repo):
     # build filepath list
     # send filepath and name list to CAS-PGE RAT job
     # first get numRecords
-    if not url.endswith("/"):
-        url = url + "/"
+    # This appended a trailing slash to a base that is then concatenated with
+    # solrPostfix, which already starts with one, so every request went to
+    # /solr/drat//select/. Older Solr collapsed the empty path segment; Solr 10
+    # answers 400, which aborted RAT execution for every MIME type in turn.
+    url = url.rstrip("/")
     solrUrl = url+solrPostfix.replace("$type", type)
     print("GET "+solrUrl)
     numFound = 0
@@ -116,10 +119,14 @@ def executeRatJobs(url, num, type, workflowUrl, taskIds, current_repo):
             execute_dynamic_workflow(workflowUrl, taskIds, metadata)
         
 
+# Solr's wt=python response writer emitted Python literals, which is why
+# these responses were parsed with eval(). Solr 10 no longer has that
+# writer and silently answers wt=python with JSON, whose true/false/null
+# are not Python names -- eval() then dies with NameError. Parse the JSON.
 def get_mime_types(solrUrl):
     neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-    connection = urlopen(solrUrl + "/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=python&indent=true")
-    response = eval(connection.read())
+    connection = urlopen(solrUrl + "/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
+    response = json.loads(connection.read())
     mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
     stats = {}
     for i in range(0, len(mime_count), 2):

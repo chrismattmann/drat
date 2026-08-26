@@ -25,14 +25,17 @@ with open(os.getenv("DRAT_HOME")+"/conf/apache-repo-list.txt") as ar:
         repoName = repo.split(".")[0].rstrip()
 
         workDir = os.getenv("DRAT_HOME")+"/data/clones/"
-        print "Cloning: ["+repoUrl+"] to ["+workDir+repoName+"]: working dir: ["+workDir+"]"
+        # Popen fails outright if cwd does not exist, and nothing else
+        # creates the clone directory on a fresh deployment.
+        os.makedirs(workDir, exist_ok=True)
+        print("Cloning: ["+repoUrl+"] to ["+workDir+repoName+"]: working dir: ["+workDir+"]")
         cloneCmd = "git clone --depth=1 "+repoUrl
-        print cloneCmd
+        print(cloneCmd)
         args = shlex.split(cloneCmd)
         p = Popen(args, cwd=workDir)
         p.communicate()
         rmCmd = "rm -rf "+repoName+"/.git"
-        print rmCmd
+        print(rmCmd)
         args = shlex.split(rmCmd)
         p2 = Popen(args, cwd=workDir)
         p2.communicate()

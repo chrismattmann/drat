@@ -111,7 +111,7 @@ def main(argv=None):
       data = ''
       for line in repoFile:
           data+=line.decode('utf-8')
-   rep = eval(data)
+   rep = json.loads(data)
    current_repo = os.path.realpath(rep["repo"])
    
    index_solr(json.dumps([rep]))
@@ -188,9 +188,9 @@ def main(argv=None):
 
       # Extract data from Solr
       neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=python&indent=true")
+      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
 
-      response = eval(connection.text)
+      response = json.loads(connection.text)
       mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
 
       for i in range(0, len(mime_count), 2):
@@ -202,14 +202,14 @@ def main(argv=None):
       stats["files"] = count_num_files(rep["repo"], ".git")
       # Index RAT logs into Solr
       connection = requests.get(os.getenv("SOLR_URL") +
-                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=python&rows=0&indent=true")
-      response = eval(connection.text)
+                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true")
+      response = json.loads(connection.text)
       num_found = response['response']['numFound']
       connection = requests.get(os.getenv("SOLR_URL") +
-                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=python&rows="
+                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows="
                                 + str(num_found) +"&indent=true")
 
-      response = eval(connection.text)
+      response = json.loads(connection.text)
       docs = response['response']['docs']
       file_data = []
       unique_file_data = {}

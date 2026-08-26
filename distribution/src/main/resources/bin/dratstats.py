@@ -27,8 +27,8 @@ import time
 import shutil
 import datetime
 from urllib.request import urlopen, Request
+from urllib.parse import quote
 import json
-import xmlrpc
 
 # Check for environment variables
 def check_env_var():
@@ -41,8 +41,8 @@ def check_env_var():
 	if os.getenv("SOLR_DRAT_URL") == None:
 		print("Environment variable $SOLR_DRAT_URL is not set.")
 		sys.exit(1)
-	if os.getenv("WORKFLOW_URL") == None:
-		print("Environment variable $WORKFLOW_URL is not set.")
+	if os.getenv("PROTEUS_URL") == None:
+		print("Environment variable $PROTEUS_URL is not set.")
 		sys.exit(1)
 
 
@@ -74,7 +74,7 @@ def count_num_files(path, exclude):
 
 # Prints usage of this script
 def help():
-	print >>sys.stderr, "\n\nUsage: python dratstats.py <path to list of repository URLs> <path to output directory>\n"
+	print("\n\nUsage: python dratstats.py <path to list of repository URLs> <path to output directory>\n", file=sys.stderr)
 
 
 # Printing out on Console
@@ -120,13 +120,13 @@ def oodt_process(command):
 	try:
 		retcode = subprocess.call("${DRAT_HOME}/bin/oodt" + " " + command, shell=True)
 		if retcode < 0:
-			print >>sys.stderr, "ODDT process was terminated by signal", -retcode, ". OODT failed to " + command + ". Aborting..."
+			print("ODDT process was terminated by signal", -retcode, ". OODT failed to " + command + ". Aborting...", file=sys.stderr)
 			sys.exit(1)
 		elif retcode > 0:
-			print >>sys.stderr, "OODT process returned", retcode, ". OODT failed to " + command + ". Aborting..."
+			print("OODT process returned", retcode, ". OODT failed to " + command + ". Aborting...", file=sys.stderr)
 			sys.exit(1)
 	except OSError as e:
-		print >>sys.stderr, "OODT execution failed:", e, ". OODT failed to " + command + ". Aborting..."
+		print("OODT execution failed:", e, ". OODT failed to " + command + ". Aborting...", file=sys.stderr)
 		sys.exit(1)
 
 
@@ -142,13 +142,13 @@ def drat_process(command, repository):
 		elif command == "map" or command == "reduce":
 			retcode = subprocess.call("${DRAT_HOME}/bin/drat" + " " + command + " &", shell=True)
 		if retcode < 0:
-			print >>sys.stderr, "DRAT " + command + " process was terminated by signal", -retcode, ". Aborting..."
+			print("DRAT " + command + " process was terminated by signal", -retcode, ". Aborting...", file=sys.stderr)
 			retval = False
 		elif retcode > 0:
-			print >>sys.stderr, "DRAT " + command + " process returned", retcode, ". Aborting..."
+			print("DRAT " + command + " process returned", retcode, ". Aborting...", file=sys.stderr)
 			retval = False
 	except OSError as e:
-		print >>sys.stderr, "DRAT " + command + " execution failed:", e, ". Aborting..."
+		print("DRAT " + command + " execution failed:", e, ". Aborting...", file=sys.stderr)
 		retval = False
 	return retval
 
@@ -169,23 +169,33 @@ def drat_reset():
 	os.mkdir(os.getenv("DRAT_HOME") + "/data/jobs")
 
 
+# Ask the workflow manager which instances are currently in a given state.
+#
+# This used to be an xmlrpc.client.ServerProxy call straight at
+# $WORKFLOW_URL. mnemosyne#95 removed XML-RPC from the workflow manager,
+# so the call can no longer connect at all. The same question now goes
+# over HTTP to proteus-services, which holds an Avro client.
+def workflow_instances_by_status(status):
+	url = os.getenv("PROTEUS_URL").rstrip("/") + "/workflowservice/instances/" + quote(status)
+	try:
+		response = urlopen(url, timeout=30)
+		return json.loads(response.read().decode("utf-8"))
+	except Exception as e:
+		print("Unable to reach the workflow service at " + url + ": " + str(e))
+		return []
+
+
 # Check if there are any pending PGE jobs in the queue
 def job_in_queue(job_name):
 	status = "PGE EXEC"
-	server = xmlrpc.client.ServerProxy(os.getenv("WORKFLOW_URL"), verbose=False)
-	
 
 	for x in range(0,6):
-		response = server.workflowmgr.getWorkflowInstancesByStatus(status)
-
-		for i in range(0, len(response)):
-		#print response[i]["sharedContext"]["TaskId"]
-			if response[i]["sharedContext"]["TaskId"][0] == job_name:
+		for instance in workflow_instances_by_status(status):
+			task_ids = instance.get("taskIds") or []
+			if task_ids and task_ids[0] == job_name:
 				return True
 
-		time.sleep(3)		
-
-	
+		time.sleep(3)
 
 	return False
 
@@ -306,25 +316,25 @@ def run(repos_list, output_dir):
 						wait_for_job("urn:drat:RatAggregator")
 						time.sleep(10)
 						retval = drat_process("reduce",None)
-                                                print ("\nwaiting for Rat Aggregator...\n")
-                                                wait_for_job("urn:drat:RatAggregator")
+						print ("\nwaiting for Rat Aggregator...\n")
+						wait_for_job("urn:drat:RatAggregator")
 			
 
 			time.sleep(5)
 
-                        if(retval):
-                                # Copy Data with datetime variables above, extract output from RatAggregate file, extract data from Solr Core
-                                printnow ("\nCopying data to Solr and Output Directory...\n")
+			if(retval):
+				# Copy Data with datetime variables above, extract output from RatAggregate file, extract data from Solr Core
+				printnow ("\nCopying data to Solr and Output Directory...\n")
 
-                                # Copying data to Output Directory
-                                repos_out = output_dir + "/" + normalize_path(rep["repo"])
-                                shutil.copytree(os.getenv("DRAT_HOME") + "/data/archive", repos_out + "/data/archive")
-                                shutil.copytree(os.getenv("DRAT_HOME") + "/data/jobs", repos_out + "/data/jobs")
-                                shutil.copytree(os.getenv("DRAT_HOME") + "/data/workflow", repos_out + "/data/workflow")
-                                print("\nData copied to Solr and Output Directory: OK\n")
+				# Copying data to Output Directory
+				repos_out = output_dir + "/" + normalize_path(rep["repo"])
+				shutil.copytree(os.getenv("DRAT_HOME") + "/data/archive", repos_out + "/data/archive")
+				shutil.copytree(os.getenv("DRAT_HOME") + "/data/jobs", repos_out + "/data/jobs")
+				shutil.copytree(os.getenv("DRAT_HOME") + "/data/workflow", repos_out + "/data/workflow")
+				print("\nData copied to Solr and Output Directory: OK\n")
 
 
-                        time.sleep(5)
+			time.sleep(5)
 			print ("\nStopping OODT...\n")
 			oodt_process("stop")
 			time.sleep(20)
@@ -341,7 +351,7 @@ def run(repos_list, output_dir):
 # This is where it all begins
 def main():
 	if len(sys.argv) < 2 or len(sys.argv) > 3:
-		print >>sys.stderr, "\nIncorrect number of arguments passed. Aborting..."
+		print("\nIncorrect number of arguments passed. Aborting...", file=sys.stderr)
 		help()
 		sys.exit(1)
 	
@@ -349,18 +359,18 @@ def main():
 	output_dir = sys.argv[2]
 
 	if not os.path.isfile(repos_list):
-		print >>sys.stderr, "\nRepository list doesn't exists at the path: ", repos_list
+		print("\nRepository list doesn't exists at the path: ", repos_list, file=sys.stderr)
 		help()
 		sys.exit(1)
 
 	if not os.path.isdir(output_dir):
-		print >>sys.stderr, "\nOutput Directory doesn't exist at the path: ", output_dir
+		print("\nOutput Directory doesn't exist at the path: ", output_dir, file=sys.stderr)
 		help()
 		sys.exit(1)
 	
 	dratData = os.getenv("DRAT_HOME") + "/data"
 	if os.path.realpath(output_dir).startswith(dratData):
-		print >>sys.stderr, "\nOutput dir cannot be a sub directory of "+dratData
+		print("\nOutput dir cannot be a sub directory of "+dratData, file=sys.stderr)
 		help()
 		sys.exit(1)
 
