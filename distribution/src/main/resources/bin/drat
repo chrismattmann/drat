@@ -38,11 +38,18 @@ function print_help {
 }
 
 function print_ui_info {
-    echo "Navigate to http://${OODT_HOST}:8080/opsui/ to view the OODT browser and http://${OODT_HOST}:8080/solr to view the Solr catalog."
+    echo "Navigate to http://${OODT_HOST}:8080/opsui/ to view the OODT browser and http://${OODT_HOST}:8983/solr to view the Solr catalog."
 }
 
 FILEMGR_URL=http://${OODT_HOST}:9000
-SOLR_URL=http://${OODT_HOST}:8080/solr/drat
+SOLR_URL=http://${OODT_HOST}:8983/solr/drat
+
+# Prefer the JDK DRAT is configured with over whatever happens to be on PATH.
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    RUNJAVA="$JAVA_HOME/bin/java"
+else
+    RUNJAVA=java
+fi
 CLIENT_URL=http://${OODT_HOST}:9001
 OPSUI_URL=http://${OODT_HOST}:8080/opsui
 
@@ -79,7 +86,12 @@ function index {
     check_services_running
     check_num_args "index" $# 1
     pushd $DRAT_HOME/filemgr/bin >> $DRAT_HOME/logs/drat.log 2>&1
-    java -DSOLR_INDEXER_CONFIG=../etc/indexer.properties -cp "../lib/*" \
+    # Bare "java" takes whatever is first on PATH, which is often an older
+    # JDK than the one DRAT is configured for. SolrJ 10 is compiled for Java
+    # 17, so this step failed with UnsupportedClassVersionError on a machine
+    # whose default java was 11, while the services themselves ran fine on
+    # JAVA_HOME.
+    "$RUNJAVA" -DSOLR_INDEXER_CONFIG=../etc/indexer.properties -cp "../lib/*" \
     org.apache.oodt.cas.filemgr.tools.SolrIndexer --all --fmUrl $FILEMGR_URL --optimize --solrUrl $SOLR_URL $1
     popd >> $DRAT_HOME/logs/drat.log 2>&1
 }
@@ -171,7 +183,7 @@ function check_services_running {
 
 function solr_delete_all {
     local core=$1
-    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:8080/solr/${core}/update?commit=true" \
+    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:8983/solr/${core}/update?commit=true" \
         --data-binary '<delete><query>*:*</query></delete>' > /dev/null
 }
 
@@ -180,7 +192,11 @@ function solr_delete_all {
 function reset_running {
     check_services_running
     echo "Resetting live DRAT state"
-    curl -sf -X POST "http://${OODT_HOST}:8080/proteus/drat/reset" > /dev/null
+    # /proteus is the Vue application now; the services moved to
+    # /proteus-services when the modules were renamed. This called the old
+    # path, and -sf meant the 404 was swallowed, so reset silently did
+    # nothing and drat go carried on against stale state.
+    curl -sf -X POST "http://${OODT_HOST}:8080/proteus-services/drat/reset" > /dev/null
     solr_delete_all drat
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*

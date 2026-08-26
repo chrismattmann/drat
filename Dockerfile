@@ -14,7 +14,7 @@ ENV PGE_ROOT=$DRAT_HOME/pge
 ENV PCS_HOME=$DRAT_HOME/pcs
 ENV FMPROD_HOME=$DRAT_HOME/tomcat/webapps/fmprod/WEB-INF/classes/
 ENV PATH=$JAVA_HOME/bin:$PATH
-ENV SOLR_DRAT_URL=http://localhost:8080/solr/drat
+ENV SOLR_DRAT_URL=http://localhost:8983/solr/drat
 ENV DRAT_EXCLUDE=""
 
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && pip3 install requests && mkdir -p /root/drat/deploy && tar xvfz dms-distribution-1.1-SNAPSHOT-bin.tar.gz -C /root/drat/deploy/ \
