@@ -148,8 +148,16 @@
 		<dependency>
 		  <groupId>org.apache.solr</groupId>
 		  <artifactId>solr-solrj</artifactId>
-		  <version>4.2.1</version>
-		</dependency>	    
+		  <!-- Declared explicitly, and kept in step with the SolrJ that
+		       cas-filemgr is built against. This was pinned to 4.2.1, which won
+		       over the transitive version and put SolrJ 4 in the war, so the
+		       index step died on NoClassDefFoundError for SolrClient, a class
+		       that only exists from SolrJ 5 onward. Leaving it to come in
+		       transitively is not an option either: cas-filemgr resolves from
+		       Central, where its pom declares solr-solrj with no version and
+		       inherits one predating the Solr 10 upgrade. -->
+		  <version>${solrj.version}</version>
+		</dependency>
 	</dependencies>
 	<build>
 	    <resources>
