@@ -19,7 +19,17 @@
 set -e
 
 # Hostname where OODT services are deployed
-OODT_HOST=localhost
+OODT_HOST=${OODT_HOST:-localhost}
+
+# The ports DRAT's own Tomcat and Solr listen on.
+#
+# These were written into every URL below. That works only where DRAT owns
+# 8080 and 8983; on a host running a second OODT deployment they belong to
+# something else, and two of the calls here -- the reset POST and
+# solr_delete_all -- are destructive. Overridable so a deployment can say
+# where its own services are.
+TOMCAT_PORT=${TOMCAT_PORT:-8080}
+SOLR_PORT=${SOLR_PORT:-8983}
 
 # Print out usage information for this script.
 function print_help {
@@ -38,11 +48,11 @@ function print_help {
 }
 
 function print_ui_info {
-    echo "Navigate to http://${OODT_HOST}:8080/opsui/ to view the OODT browser and http://${OODT_HOST}:8983/solr to view the Solr catalog."
+    echo "Navigate to http://${OODT_HOST}:${TOMCAT_PORT}/opsui/ to view the OODT browser and http://${OODT_HOST}:${SOLR_PORT}/solr to view the Solr catalog."
 }
 
 FILEMGR_URL=http://${OODT_HOST}:9000
-SOLR_URL=http://${OODT_HOST}:8983/solr/drat
+SOLR_URL=${SOLR_URL:-http://${OODT_HOST}:${SOLR_PORT}/solr/drat}
 
 # Prefer the JDK DRAT is configured with over whatever happens to be on PATH.
 if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
@@ -51,7 +61,7 @@ else
     RUNJAVA=java
 fi
 CLIENT_URL=http://${OODT_HOST}:9001
-OPSUI_URL=http://${OODT_HOST}:8080/opsui
+OPSUI_URL=http://${OODT_HOST}:${TOMCAT_PORT}/opsui
 
 # Crawl the given repository. Expects one or three argument(s) -- the file path of the repo to be crawled and
 # --exclude file/directory name.
@@ -168,12 +178,12 @@ function check_port {
 # Otherwise, check the ports are not busy.
 function check_services_running {
     if [[ $# == 0 ]]; then
-        if [[ ! -n $(check_port 9000) ]] || [[ ! -n $(check_port 9001) ]] || [[ ! -n $(check_port 9002) ]] || [[ ! -n $(check_port 8080) ]]; then
+        if [[ ! -n $(check_port 9000) ]] || [[ ! -n $(check_port 9001) ]] || [[ ! -n $(check_port 9002) ]] || [[ ! -n $(check_port ${TOMCAT_PORT}) ]]; then
             echo "Please start OODT by running '\$DRAT_HOME/bin/oodt start'"
             echo "Aborting..."
             exit 1
         fi
-    elif [[ -n $(check_port 9000) ]] || [[ -n $(check_port 9001) ]] || [[ -n $(check_port 9002) ]] || [[ -n $(check_port 8080) ]]; then
+    elif [[ -n $(check_port 9000) ]] || [[ -n $(check_port 9001) ]] || [[ -n $(check_port 9002) ]] || [[ -n $(check_port ${TOMCAT_PORT}) ]]; then
         echo "Please stop OODT by running '\$DRAT_HOME/bin/oodt stop'"
         echo "Aborting..."
         exit 1
@@ -183,7 +193,7 @@ function check_services_running {
 
 function solr_delete_all {
     local core=$1
-    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:8983/solr/${core}/update?commit=true" \
+    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:${SOLR_PORT}/solr/${core}/update?commit=true" \
         --data-binary '<delete><query>*:*</query></delete>' > /dev/null
 }
 
@@ -196,7 +206,7 @@ function reset_running {
     # /proteus-services when the modules were renamed. This called the old
     # path, and -sf meant the 404 was swallowed, so reset silently did
     # nothing and drat go carried on against stale state.
-    curl -sf -X POST "http://${OODT_HOST}:8080/proteus-services/drat/reset" > /dev/null
+    curl -sf -X POST "http://${OODT_HOST}:${TOMCAT_PORT}/proteus-services/drat/reset" > /dev/null
     solr_delete_all drat
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*

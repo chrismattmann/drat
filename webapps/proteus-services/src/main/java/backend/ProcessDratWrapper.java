@@ -63,6 +63,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import drat.proteus.services.constants.ProteusEndpointConstants;
 
 public class ProcessDratWrapper extends GenericProcess
     implements AbstractDratWrapper {
@@ -735,7 +736,12 @@ public class ProcessDratWrapper extends GenericProcess
   }
 
   private synchronized void wipeSolrCore(String coreName) {
-    String baseUrl = "http://localhost:8983/solr";
+    // Was a literal http://localhost:8983/solr. This method issues
+    // deleteByQuery("*:*"), so pointing it at a compiled-in address means
+    // that on a host where 8983 belongs to another OODT deployment, a DRAT
+    // reset empties a core that is not DRAT's. Take the address the
+    // deployment configured.
+    String baseUrl = ProteusEndpointConstants.SOLR_BASE_URL + "/solr";
     String finalUrl = baseUrl + "/" + coreName;
     HttpSolrServer server = null;
     try {
