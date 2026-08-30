@@ -26,9 +26,11 @@ function print_help {
     echo "Usage: drat [crawl, index, map, reduce] in order to analyze a repository." 
     echo "       Alternatively, call 'drat go' to run all four automatically."
     echo "       drat"
-    echo "            go [--full-wipe] [--exclude <file/directory name>] <path to repo>"
+    echo "            go [--full-wipe] [--exclude <name>[,<name>...]]... <path to repo>"
     echo "                                                                   | start OODT and analyze the repository"
-    echo "            crawl [--exclude <file/directory name>] <path to repo>	| crawl the repository files"
+    echo "            crawl [--exclude <name>[,<name>...]]... <path to repo>	| crawl the repository files"
+    echo "                                                                   | --exclude may be repeated, e.g."
+    echo "                                                                   |   --exclude target --exclude .git"
     echo "            index <path to repo>  					| index the crawled files"
     echo "            map                   					| fire off the MapReduce mapper"
     echo "            reduce                					| fire off the MapReduce reducer"
@@ -53,19 +55,60 @@ fi
 CLIENT_URL=http://${OODT_HOST}:9001
 OPSUI_URL=http://${OODT_HOST}:8080/opsui
 
-# Crawl the given repository. Expects one or three argument(s) -- the file path of the repo to be crawled and
-# --exclude file/directory name.
+# Build a single exclusion regex from any number of file/directory names.
+#
+# One --exclude was never enough for a real repository: a source tree that
+# needs "target" out of the audit almost always needs ".git" out too, and
+# with a single pattern the second one silently stayed in. Auditing 8000
+# compiled .class files under target/ for license headers tells you nothing.
+#
+# Every name is regex-escaped and the names are joined into one alternation,
+# so the matching semantics are exactly what they were for one name:
+# a whole path component, anywhere in the path.
+function build_exclude_regex {
+    local joined=
+    local name
+    for name in "$@"; do
+        [[ -z "$name" ]] && continue
+        name=$(printf '%s' "$name" | sed 's/[][\/.^$*+?(){}|]/\\&/g')
+        if [[ -z "$joined" ]]; then
+            joined="$name"
+        else
+            joined="$joined|$name"
+        fi
+    done
+    [[ -z "$joined" ]] && return 0
+    printf '%s' ".*(^|/)($joined)(/|\$).*"
+}
+
+# Crawl the given repository. Expects the file path of the repo to be crawled,
+# optionally preceded by any number of --exclude <file/directory name> pairs.
+# --exclude may also be given a comma-separated list.
 function crawl {
     check_services_running
-    if [[ "${1:-}" == "--exclude" ]]; then
-	check_num_args "crawl" $# 3
-	EXCLUDE_PATTERN=$(printf '%s' "$2" | sed 's/[][\/.^$*+?(){}|]/\\&/g')
-	export DRAT_EXCLUDE=".*(^|/)${EXCLUDE_PATTERN}(/|$).*"
-	PRODUCT_PATH=$3
+    local -a EXCLUDE_NAMES=()
+    while [[ "${1:-}" == "--exclude" ]]; do
+        if [[ $# -lt 2 ]]; then
+            echo "Expected an exclude value after '--exclude'."
+            print_help
+            exit 1
+        fi
+        # A comma-separated value is split, so both spellings work.
+        local IFS=,
+        local part
+        for part in $2; do
+            EXCLUDE_NAMES+=("$part")
+        done
+        unset IFS
+        shift 2
+    done
+    check_num_args "crawl" $# 1
+    PRODUCT_PATH=$1
+    if [[ ${#EXCLUDE_NAMES[@]} -gt 0 ]]; then
+        export DRAT_EXCLUDE=$(build_exclude_regex "${EXCLUDE_NAMES[@]}")
+        echo "Excluding path components: ${EXCLUDE_NAMES[*]}"
     else
-    	check_num_args "crawl" $# 1
-	export DRAT_EXCLUDE=""
-	PRODUCT_PATH=$1
+        export DRAT_EXCLUDE=""
     fi
     pushd $DRAT_HOME/crawler/bin >> $DRAT_HOME/logs/drat.log 2>&1
    
@@ -212,7 +255,7 @@ function full_wipe_running {
 function go {
     check_services_running
     FULL_WIPE=false
-    EXCLUDE_VALUE=
+    local -a EXCLUDE_ARGS=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --full-wipe)
@@ -225,7 +268,7 @@ function go {
                     print_help
                     exit 1
                 fi
-                EXCLUDE_VALUE=$2
+                EXCLUDE_ARGS+=(--exclude "$2")
                 shift 2
             ;;
             -*)
@@ -254,8 +297,8 @@ function go {
     fi
     reset_running
     echo "Crawling $PRODUCT_PATH"
-    if [[ -n "$EXCLUDE_VALUE" ]]; then
-        crawl --exclude "$EXCLUDE_VALUE" "$PRODUCT_PATH"
+    if [[ ${#EXCLUDE_ARGS[@]} -gt 0 ]]; then
+        crawl "${EXCLUDE_ARGS[@]}" "$PRODUCT_PATH"
     else
         crawl "$PRODUCT_PATH"
     fi
