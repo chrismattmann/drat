@@ -63,6 +63,20 @@
 			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
+        <!--
+          Declared rather than inherited. These services have always used Gson,
+          but it reached the classpath only through Mnemosyne's Tika: the
+          tika-parsers 1.13 POM declared com.google.code.gson:gson. Tika 3.x
+          splits the parsers up and tika-parsers-standard-package declares no
+          such thing, so the upgrade took Gson off the compile classpath and
+          this module stopped building. A JSON library is not something to
+          receive by accident from a content parser.
+        -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.cxf</groupId>
             <artifactId>cxf-rt-rs-client</artifactId>
