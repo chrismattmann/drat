@@ -75,7 +75,6 @@ public class ProteusEndpointConstants {
    */
   public static final String SOLR_BASE_URL = configuredBaseUrl(
       SOLR_BASE_URL_PROPERTY, SOLR_BASE_URL_ENV, "http://localhost:8983");
-  public static final String FILE_MANAGER_PRODUCTS = "viewRecent";
   public static final String HEALTH_STATUS_REPORT = "report";
   public static final String MIME_TYPE_SELECT = "select";
 
