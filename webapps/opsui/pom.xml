@@ -39,13 +39,19 @@
         <version>${maven.war.plugin.version}</version>
         <configuration>
           <overlays>
+            <!--
+              No excludes. This used to drop Mnemosyne's WEB-INF/web.xml so
+              that DRAT's own took its place, and DRAT's declared
+              WicketFilter. Wicket is gone from Mnemosyne, so the assembled
+              war deployed and then failed to start with "One or more Filters
+              failed to start". Mnemosyne's web.xml is now taken as it comes;
+              this overlay exists for the deployment-specific context.xml, not
+              to replace the servlet configuration. Same shape BigTranslate
+              uses.
+            -->
             <overlay>
               <groupId>ai.mattmann.mnemosyne</groupId>
               <artifactId>pcs-opsui</artifactId>
-              <excludes>
-                <exclude>WEB-INF/web.xml</exclude>
-                <exclude>WEB-INF/lib/slf4j-log4j12-*.jar</exclude>
-              </excludes>              
             </overlay>
           </overlays>
         </configuration>

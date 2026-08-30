@@ -117,10 +117,17 @@
       <version>${project.parent.version}</version>
       <type>war</type>
     </dependency>
+    <!--
+      Held at the same version Mnemosyne depends on, so the deployment carries
+      one Tika rather than two. Used by bin/gen-apache-repo-urls.sh, which
+      shells out to "tika -t" to scrape the gitbox repo listing; the 3.x app
+      keeps that flag and its plain-text output, unlike 4.x which emits
+      Markdown.
+    -->
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-app</artifactId>
-      <version>1.18</version>
+      <version>${tika.version}</version>
     </dependency>
   </dependencies>
 

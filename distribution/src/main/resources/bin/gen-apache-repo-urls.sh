@@ -16,13 +16,17 @@
 
 shopt -s expand_aliases
 
-if [ ! -f $DRAT_HOME/lib/tika-app-1.18.jar ]; then
+TIKA_VERSION=3.3.2
+
+if [ ! -f $DRAT_HOME/lib/tika-app-$TIKA_VERSION.jar ]; then
     pushd $DRAT_HOME/lib
-    curl -O http://repo1.maven.org/maven2/org/apache/tika/tika-app/1.18/tika-app-1.18.jar
+    # https, not http: repo1 has refused plain HTTP since 2020, so the old
+    # fetch failed silently and left the alias pointing at a missing jar.
+    curl -O https://repo1.maven.org/maven2/org/apache/tika/tika-app/$TIKA_VERSION/tika-app-$TIKA_VERSION.jar
     popd
 fi
 
-alias tika="java -jar $DRAT_HOME/lib/tika-app-1.18.jar"
+alias tika="java -jar $DRAT_HOME/lib/tika-app-$TIKA_VERSION.jar"
 REPOS=`tika -t "https://gitbox.apache.org/repos/asf" | grep \.git | cut -d\? -f2 | cut -d\; -f1 | cut -d\= -f2 | cut -d\" -f1 | cut -d"." -f1 | sort | uniq`
 for REPO in $REPOS; do
     echo $REPO.git | sed -e 's/^[[:space:]]*//' ;
