@@ -12,17 +12,27 @@
 ############################
 
 export DRAT_HOME=${DRAT_HOME:-$HOME/drat/deploy}
-export FILEMGR_URL=http://localhost:9000
-export WORKFLOW_URL=http://localhost:9001
-export RESMGR_URL=http://localhost:9002
+export OODT_HOST=${OODT_HOST:-localhost}
+
+# Set these two to move the whole deployment off the default ports. Every
+# URL below is derived from them, so a second OODT installation on the same
+# host does not have to be edited into each line -- and, more to the point,
+# DRAT does not index into or delete from a Solr that belongs to something
+# else.
+export TOMCAT_PORT=${TOMCAT_PORT:-8080}
+export SOLR_PORT=${SOLR_PORT:-8983}
+
+export FILEMGR_URL=${FILEMGR_URL:-http://$OODT_HOST:9000}
+export WORKFLOW_URL=${WORKFLOW_URL:-http://$OODT_HOST:9001}
+export RESMGR_URL=${RESMGR_URL:-http://$OODT_HOST:9002}
 export FILEMGR_HOME=$DRAT_HOME/filemgr
 export PGE_HOME=$DRAT_HOME/pge
 export PCS_HOME=$DRAT_HOME/pcs
-export OPSUI_URL=http://localhost:8080/opsui
-export PROTEUS_URL=http://localhost:8080/proteus-services
-export SOLR_URL=http://localhost:8983/solr
+export OPSUI_URL=${OPSUI_URL:-http://$OODT_HOST:$TOMCAT_PORT/opsui}
+export PROTEUS_URL=${PROTEUS_URL:-http://$OODT_HOST:$TOMCAT_PORT/proteus-services}
+export SOLR_URL=${SOLR_URL:-http://$OODT_HOST:$SOLR_PORT/solr}
 export FMPROD_HOME=$DRAT_HOME/tomcat/webapps/fmprod/WEB-INF/classes/
-export SOLR_DRAT_URL=http://localhost:8983/solr/drat
+export SOLR_DRAT_URL=${SOLR_DRAT_URL:-$SOLR_URL/drat}
 export DRAT_EXCLUDE=""
 
 #####  Copy and Paste this Block into the .bashrc of your deployment user account ##########

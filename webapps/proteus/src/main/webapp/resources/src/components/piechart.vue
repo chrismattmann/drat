@@ -38,6 +38,16 @@ import store from './../store/store';
     store,
     props: [],
     mounted() {
+        // Draw what is in the catalog straight away, then keep it current
+        // while a run is moving.
+        //
+        // This used to load only while the run state was INDEX, MAP, REDUCE
+        // or DONE, which ties a description of the catalog to what this
+        // session happened to do. The catalog outlives the session: it is
+        // populated by bin/drat as often as by this UI, and the run state
+        // resets to IDLE when Tomcat restarts. Either way the chart went
+        // blank while thousands of products sat in Solr.
+        this.loadData();
         this.timerClearVar = setInterval(function () {
           if(this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
