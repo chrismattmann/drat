@@ -44,6 +44,20 @@
 	</properties>
 	<dependencies>
 
+         <!--
+           Gson is imported directly by this module (ProcessDratWrapper,
+           HealthMonitorService, DratRestResource, ServicesRestResource,
+           MimeTypeBreakdownService) but was not declared, so the module
+           only compiled while some other dependency happened to drag Gson
+           onto the classpath. It stopped doing so and the module stopped
+           building. 2.11.0 is past CVE-2022-25647, which affects < 2.8.9.
+         -->
+         <dependency>
+                 <groupId>com.google.code.gson</groupId>
+                 <artifactId>gson</artifactId>
+                 <version>2.11.0</version>
+         </dependency>
+
          <!-- LOGGING DEPENDENCIES - LOG4J -->
          <dependency>
                  <groupId>org.apache.logging.log4j</groupId>

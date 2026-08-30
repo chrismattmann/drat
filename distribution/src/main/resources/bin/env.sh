@@ -153,10 +153,33 @@ if [ -z "$TOMCAT_PORT" ]; then
   export TOMCAT_PORT
 fi
 
+if [ -z "$SOLR_PORT" ]; then
+  SOLR_PORT=8983
+  export SOLR_PORT
+fi
+
 if [ -z "$OODT_SERVICES_HOST" ]; then
   OODT_SERVICES_HOST=localhost
   export OODT_SERVICES_HOST
 fi
+
+# The web applications read these rather than the addresses that used to be
+# compiled into ProteusEndpointConstants, so a deployment on non-default
+# ports reaches its own Tomcat and its own Solr.
+if [ -z "$DRAT_BASE_URL" ]; then
+  DRAT_BASE_URL=http://"$OODT_SERVICES_HOST":"$TOMCAT_PORT"
+  export DRAT_BASE_URL
+fi
+
+if [ -z "$DRAT_SOLR_BASE_URL" ]; then
+  DRAT_SOLR_BASE_URL=http://"$OODT_SERVICES_HOST":"$SOLR_PORT"
+  export DRAT_SOLR_BASE_URL
+fi
+
+# Appended here rather than where CATALINA_OPTS is first set: the two URLs
+# above are defined further down this file, so setting them up there would
+# pass empty values through to Tomcat.
+export CATALINA_OPTS="$CATALINA_OPTS -Ddrat.base.url=$DRAT_BASE_URL -Ddrat.solr.base.url=$DRAT_SOLR_BASE_URL"
 
 if [ -z "$FILEMGR_URL" ]; then
   FILEMGR_URL=http://"$OODT_SERVICES_HOST":"$FILEMGR_PORT"
