@@ -3,7 +3,26 @@
 <metadataList>
     
     <metadata key="JobId" val="[JobId]"/>
-    <metadata key="InputFiles"/>
+    <!--
+      Written as one value per log, not one value holding every log.
+
+      Without a val, the writer copies the PGE metadata across as it stands,
+      and here that is a single string: InputFiles is built by a SQL query
+      over every RatLog, which QueryUtils returns comma-joined. On this
+      corpus that is one term of 76,730 bytes, and Lucene will not index a
+      term over 32,766, so the ingest was rolled back and the aggregate
+      task failed after doing all of its work:
+
+        Unable to index product: Document contains at least one immense term
+        in field="InputFiles" ... bytes can be at most 32766 in length
+
+      Giving it a val sends it through the writer's splitting path instead,
+      which is what the rest of the pipeline already relies on. The audit
+      tasks carry InputFiles as a list, and only the aggregate flattened it.
+      The delimiter is the comma the query joined on, and the same one the
+      command splits on to build its arguments.
+    -->
+    <metadata key="InputFiles" val="[InputFiles]" delimiter=","/>
     <metadata key="ProductionDateTime"/>
     <metadata key="ProductType"/>
     
