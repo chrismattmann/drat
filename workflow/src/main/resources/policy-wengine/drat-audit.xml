@@ -46,18 +46,17 @@
     </workflow>
 
     <!--
-      The aggregate phase waits on its conditions rather than on a sleep loop.
-      The block is declared sequential, which means each condition is evaluated
-      only after the one before it has passed. That is deliberate: conditions
-      have always been evaluated all at once regardless of what the block said,
-      so sequential is the declaration that actually changes behaviour here.
+      The gate is declared on the RatAggregator task rather than on this
+      phase, so it travels with the task instead of with one way of running
+      it. Every path that runs the aggregator is then gated, including the
+      single-task dynamic workflow that "drat reduce" submits, which
+      previously ran with no gate at all and aggregated three of seventy-five
+      logs. It is also the spelling W1 can express: that engine puts
+      conditions on tasks, not on workflows, so the same declaration works on
+      either engine.
     -->
     <workflow id="urn:drat:AggregatePhase" name="Aggregate Phase"
               execution="sequential">
-      <conditions execution="sequential" type="pre">
-        <condition id-ref="urn:drat:MapsSettling"/>
-        <condition id-ref="urn:drat:MapsDone"/>
-      </conditions>
       <task id-ref="urn:drat:RatAggregator"/>
     </workflow>
 
@@ -107,7 +106,16 @@
 
   <task id="urn:drat:RatAggregator" name="RatAggregator"
         class="org.apache.oodt.cas.pge.StdPGETaskInstance">
-    <conditions/>
+    <!--
+      Declared sequential, which means each condition is evaluated only after
+      the one before it has passed. That is deliberate: conditions were
+      evaluated all at once regardless of what the block said, so sequential
+      is the declaration that actually changes behaviour here.
+    -->
+    <conditions execution="sequential" type="pre">
+      <condition id-ref="urn:drat:MapsSettling"/>
+      <condition id-ref="urn:drat:MapsDone"/>
+    </conditions>
     <configuration>
       <property name="PGETask_Name" value="RatAggregator"/>
       <property name="PGETask_ConfigFilePath" value="[DRAT_HOME]/pge/policy/PgeConfig_RatAggregator.xml" envReplace="true"/>
@@ -122,14 +130,43 @@
   </task>
 
   <!--
-    Two conditions that take a while on purpose. LongCondition returns false a
-    number of times before it passes, so the pair makes the ordering visible:
-    under a sequential block the second must not begin until the first has
-    passed, where previously both began at once.
+    The gate. Both conditions watch the same thing: how many RatLog products
+    the catalog holds. An audit ingests one when it finishes, so the count
+    climbing means audits are still landing, and the count holding still means
+    they have stopped.
+
+    MapsSettling asks only that audits have started producing and paused
+    briefly, so the aggregate cannot run against an empty catalog. MapsDone
+    then waits for a full minute of quiet, which is what "the map phase is
+    over" looks like from here.
+
+    They ask the file manager, not the workflow engine. That is what makes
+    them work unchanged on either engine: a condition that asked how the
+    scheduler was doing would have to know which scheduler it was talking to.
+    The W1 spelling of this pair lives in conditions.xml and is the same
+    class with the same properties.
+
+    Both read the catalog fresh on every evaluation and remember nothing:
+    ConditionTaskInstance builds a new condition object each time, so a gate
+    that tried to watch a trend across evaluations would never open.
   -->
   <condition id="urn:drat:MapsSettling" name="Maps Settling"
-             class="org.apache.oodt.cas.workflow.examples.LongCondition"/>
+             class="org.apache.oodt.cas.pge.condition.ProductCountSettledCondition">
+    <configuration>
+      <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+      <property name="ProductTypeName" value="RatLog"/>
+      <property name="MinCount" value="1"/>
+      <property name="QuietSeconds" value="20"/>
+    </configuration>
+  </condition>
   <condition id="urn:drat:MapsDone" name="Maps Done"
-             class="org.apache.oodt.cas.workflow.examples.LongCondition"/>
+             class="org.apache.oodt.cas.pge.condition.ProductCountSettledCondition">
+    <configuration>
+      <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+      <property name="ProductTypeName" value="RatLog"/>
+      <property name="MinCount" value="1"/>
+      <property name="QuietSeconds" value="60"/>
+    </configuration>
+  </condition>
 
 </cas:workflows>

@@ -56,12 +56,21 @@
 
   <task id="urn:drat:RatAggregator" name="RatAggregator" 
     class="org.apache.oodt.cas.pge.StdPGETaskInstance">
-	<!--
-	An example to check for prerequisite jobs while running DRAT using OODT Resource Manager
-        <conditions>
-		<condition id="urn:drat:CheckForPrerequisiteJob" />
-	</conditions>
-	-->
+    <!--
+      The gate: the aggregate does not start until the audits have stopped
+      landing. Declared here rather than on the workflow, so it travels with
+      the task and every path that runs the aggregator is gated, including
+      the single-task dynamic workflow that "drat reduce" submits.
+
+      This replaces a stub that asked the resource manager whether particular
+      jobs were still queued. That would have been a fact about how one
+      engine schedules; these ask the file manager what it holds, which is
+      the same question on either engine. Defined in conditions.xml.
+    -->
+    <conditions>
+      <condition id="urn:drat:MapsSettling"/>
+      <condition id="urn:drat:MapsDone"/>
+    </conditions>
 
         <configuration>
           <property name="PGETask_Name" value="RatAggregator"/>
