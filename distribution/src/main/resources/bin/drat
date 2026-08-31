@@ -28,6 +28,19 @@ set -e
 DRAT_HOME=${DRAT_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 export DRAT_HOME
 
+# What this deployment says about itself.
+#
+# setenv.sh is where a deployment declares its host, its ports and the URLs
+# derived from them, and every service control script reads it. This script
+# used to carry its own copy of those defaults, so a deployment that moved
+# off 8080 and 8983 in setenv.sh still got 8080 and 8983 here: "drat go"
+# posted its reset to whatever owned 8080, curl returned a 404, and under
+# set -e the run ended after one line of output. One place declares the
+# deployment; this reads it and fills in only what it does not set.
+if [ -r "$DRAT_HOME/bin/setenv.sh" ]; then
+    . "$DRAT_HOME/bin/setenv.sh"
+fi
+
 # Hostname where OODT services are deployed
 OODT_HOST=${OODT_HOST:-localhost}
 
@@ -48,6 +61,7 @@ function print_help {
     echo "       drat"
     echo "            go [--full-wipe] [--exclude <name>[,<name>...]]... <path to repo>"
     echo "                                                                   | start OODT and analyze the repository"
+    echo "            audit                                                      | run the whole audit as one workflow"
     echo "            crawl [--exclude <name>[,<name>...]]... <path to repo>	| crawl the repository files"
     echo "                                                                   | --exclude may be repeated, e.g."
     echo "                                                                   |   --exclude target --exclude .git"
@@ -64,7 +78,10 @@ function print_ui_info {
 }
 
 FILEMGR_URL=http://${OODT_HOST}:9000
-SOLR_URL=${SOLR_URL:-http://${OODT_HOST}:${SOLR_PORT}/solr/drat}
+# The DRAT core, not the Solr server. setenv.sh calls the server SOLR_URL and
+# the core SOLR_DRAT_URL; this file used SOLR_URL for the core, so the two
+# disagreed about what the name meant. Use the deployment's name for it.
+SOLR_DRAT_URL=${SOLR_DRAT_URL:-http://${OODT_HOST}:${SOLR_PORT}/solr/drat}
 
 # Prefer the JDK DRAT is configured with over whatever happens to be on PATH.
 if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
@@ -74,6 +91,17 @@ else
 fi
 CLIENT_URL=http://${OODT_HOST}:9001
 OPSUI_URL=http://${OODT_HOST}:${TOMCAT_PORT}/opsui
+
+# Where this deployment's PCS services answer. The audit is followed through
+# these rather than by matching status names: which names mean "finished"
+# differs between the two engines, and the lifecycle that knows the answer is
+# read there rather than restated here.
+PCS_SERVICES_URL=${PCS_SERVICES_URL:-http://${OODT_HOST}:${TOMCAT_PORT}/pcs/services}
+
+# The audit, as one workflow. Both engines answer to this id: W1 through the
+# event of the same name in events.xml, W2 because it registers an event for
+# every workflow id it parses.
+AUDIT_WORKFLOW_ID=${AUDIT_WORKFLOW_ID:-urn:drat:AuditPipeline}
 
 # Build a single exclusion regex from any number of file/directory names.
 #
@@ -155,7 +183,7 @@ function index {
     # whose default java was 11, while the services themselves ran fine on
     # JAVA_HOME.
     "$RUNJAVA" -DSOLR_INDEXER_CONFIG=../etc/indexer.properties -cp "../lib/*" \
-    org.apache.oodt.cas.filemgr.tools.SolrIndexer --all --fmUrl $FILEMGR_URL --optimize --solrUrl $SOLR_URL $1
+    org.apache.oodt.cas.filemgr.tools.SolrIndexer --all --fmUrl $FILEMGR_URL --optimize --solrUrl $SOLR_DRAT_URL $1
     popd >> $DRAT_HOME/logs/drat.log 2>&1
 }
 
@@ -178,6 +206,91 @@ function current_pges {
 }
 
 # Fire off the MapReduce reducer. Expects no arguments.
+# Start the audit: one workflow instance for partition, map and aggregate.
+#
+# The phases used to be submitted as three separate single-task dynamic
+# workflows with the ordering between them kept in this script. The engine
+# already knows the ordering, the gate on RatAggregator already knows when
+# the map is finished, and one instance is something anyone can ask about
+# afterwards. This submits it and says nothing else about sequencing.
+function audit {
+    check_services_running
+    check_num_args "audit" $# 0
+    pushd $DRAT_HOME/workflow/bin >> $DRAT_HOME/logs/drat.log 2>&1
+    ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
+        --eventName "$AUDIT_WORKFLOW_ID"
+    popd >> $DRAT_HOME/logs/drat.log 2>&1
+}
+
+# Every workflow instance this deployment currently holds, as
+# "<id>\t<ended?>".
+function all_instances {
+    local body page=1 total=1
+    while [[ $page -le $total ]]; do
+        body=$(curl -sf "${PCS_SERVICES_URL}/workflow/instances?status=ALL&page=${page}" 2>/dev/null) || return 0
+        printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    page = json.load(sys.stdin)["page"]
+except Exception:
+    sys.exit(0)
+sys.stderr.write(str(page.get("totalPages") or 1))
+for inst in page.get("instances") or []:
+    print("%s\t%s" % (inst.get("id") or "-",
+                      (inst.get("endDateTime") or "").strip()))
+' 2>"$DRAT_HOME/logs/.drat_pages"
+        total=$(cat "$DRAT_HOME/logs/.drat_pages" 2>/dev/null || echo 1)
+        page=$((page + 1))
+    done
+    rm -f "$DRAT_HOME/logs/.drat_pages"
+}
+
+# The ids of every instance that exists right now, space separated.
+function instance_ids {
+    all_instances | cut -f1 | tr '\n' ' '
+}
+
+# Wait until everything this run started has finished.
+#
+# Not "wait until the audit instance has an end date": under W2 the pipeline
+# instance dispatches redirectors to its phases and finishes at once -- in a
+# two minute run it ended after two seconds -- so its end date says the work
+# was handed out, not that it is done. Under W1 the audit is a single flat
+# instance and its end date is exactly the answer. Waiting for every instance
+# this run brought into being to carry an end date is the same question on
+# both engines, and it also covers the per mime type audits the partitioner
+# submits, which belong to no workflow named here.
+#
+# Instances that existed beforehand are left out on purpose. Some of them may
+# never finish -- an engine restart leaves instances no one is running, and
+# waiting on those would wait for ever.
+function wait_for_audit {
+    local before=" $1 "
+    local line id ended pending waited=0
+    printf "Waiting for the audit to finish"
+    while true; do
+        pending=0
+        while IFS=$'\t' read -r id ended; do
+            [[ -z "$id" ]] && continue
+            [[ "$before" == *" $id "* ]] && continue
+            [[ -z "$ended" ]] && pending=$((pending + 1))
+        done < <(all_instances)
+
+        if [[ $pending == 0 ]] && [[ $waited -gt 0 ]]; then
+            echo
+            echo "The audit finished."
+            return 0
+        fi
+        if [[ $((waited % 60)) == 0 ]] && [[ $waited -gt 0 ]]; then
+            echo
+            printf "  %s instances still running" "$pending"
+        fi
+        printf "."
+        sleep 5
+        waited=$((waited + 5))
+    done
+}
+
 function reduce {
     check_services_running
     check_num_args "reduce" $# 0
@@ -520,19 +633,16 @@ function go {
     index $PRODUCT_PATH
     sleep 3
     echo
-    echo "Firing off the MapReduce mapper"
-    map
+    # One instance for the whole audit, rather than a mapper and a reducer
+    # submitted separately with the ordering between them kept here. What
+    # follows a run afterwards has one thing to follow, and the engine holds
+    # the ordering it was always the right place for.
+    echo "Starting the audit"
+    local before
+    before=$(instance_ids)
+    audit
     echo
-    printf "Waiting for the mapping and partitioning to finish..."
-    sleep 3
-    while [[ -n $(current_pges) ]]; do
-        for (( i = 0; i < 10; i++ )); do
-            printf "."
-            sleep 5
-        done
-    done
-    echo
-    reduce
+    wait_for_audit "$before"
 }
 
 # Reset drat to prepare for analyzing an entirely new repo. Expects no arguments.
@@ -614,6 +724,10 @@ case $1 in
     reduce)
         shift
         reduce
+    ;;
+    audit)
+        shift
+        audit
     ;;
     go)
         shift

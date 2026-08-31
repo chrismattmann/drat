@@ -15,7 +15,19 @@
   limitations under the License.
 -->
 <cas:workflowevents xmlns:cas="http://oodt.jpl.nasa.gov/1.0/cas">
-<!--
-  TODO: Add some examples
--->
+
+  <!--
+    The audit, reachable by name.
+
+    W1 starts a workflow by sending an event, and this is where the mapping
+    from an event to a workflow lives. W2 registers an event for every
+    workflow it parses, under that workflow's own id. Naming the event after
+    the workflow is what lets one command start the audit on either engine:
+    sending an event called urn:drat:AuditPipeline. W2 answers to that
+    already, because it registers the id itself; this file is W1's half.
+  -->
+  <event name="urn:drat:AuditPipeline">
+    <workflow id="urn:drat:AuditPipeline"/>
+  </event>
+
 </cas:workflowevents>
