@@ -11,7 +11,16 @@
 #
 ############################
 
-export DRAT_HOME=${DRAT_HOME:-$HOME/drat/deploy}
+# The deployment this file belongs to, not one fixed when it was written.
+#
+# Every service control script sources this by way of env.sh, which has
+# already worked out OODT_HOME from the calling script's own location. With
+# $HOME/drat/deploy as the only default, a deployment installed anywhere
+# else silently drove another install's configuration and jars: the file
+# manager came up on 9000 answering for the wrong deployment, and the crawl
+# that followed failed on every file it offered. An exported DRAT_HOME still
+# wins, for anyone who sets one deliberately.
+export DRAT_HOME=${DRAT_HOME:-${OODT_HOME:-$HOME/drat/deploy}}
 export OODT_HOST=${OODT_HOST:-localhost}
 
 # Set these two to move the whole deployment off the default ports. Every
