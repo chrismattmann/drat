@@ -18,6 +18,16 @@
 # Stop on first error.
 set -e
 
+# Where this deployment lives.
+#
+# Everything below is addressed relative to this, and unset it addressed
+# nothing: paths came out as /workflow/etc, /data/archive and /logs, so
+# reset reported it had no configuration to read and carried on. Taken from
+# the script's own location so the deployment can be driven from where it is
+# installed; an exported DRAT_HOME still wins.
+DRAT_HOME=${DRAT_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+export DRAT_HOME
+
 # Hostname where OODT services are deployed
 OODT_HOST=${OODT_HOST:-localhost}
 
@@ -284,8 +294,30 @@ function reset_file_manager_catalog {
             local idx
             idx=$(read_prop "$props" "org.apache.oodt.cas.filemgr.catalog.lucene.idxPath")
             if [ -n "$idx" ] && [ -d "$idx" ]; then
+                # A running file manager holds this index open. Deleting it
+                # underneath one leaves a process that still listens on 9000
+                # and fails every call, so the crawl that follows reports
+                # "Exception connecting to filemgr" once per file and
+                # ingests nothing. Take it down for the delete.
+                local bounced=false
+                if [[ -n $(check_port 9000) ]]; then
+                    echo "Stopping the file manager to release $idx"
+                    if ! stop_service "file manager" \
+                            "$DRAT_HOME/filemgr/bin/filemgr" 9000; then
+                        return 0
+                    fi
+                    bounced=true
+                fi
+                # The directory, not its contents. A Lucene catalog is
+                # created when the directory is absent, so an emptied one
+                # left the file manager with nothing it could open.
                 echo "Clearing the file manager catalog at $idx"
-                rm -rf "${idx:?}/"*
+                rm -rf "${idx:?}"
+                if [[ "$bounced" == "true" ]]; then
+                    echo "Restarting the file manager"
+                    start_service "file manager" \
+                        "$DRAT_HOME/filemgr/bin/filemgr" 9000
+                fi
             fi
             ;;
         *SolrCatalogFactory*)
@@ -317,6 +349,44 @@ function reset_file_manager_catalog {
 # instances are the directory, and a JDBC database, where they are rows: for
 # the second, deleting the files would take the schema with them and the
 # workflow manager would start against a database with no tables.
+# Put a service down, and wait for it to actually be down.
+#
+# The control scripts return as soon as they have signalled the process; the
+# store it holds -- a database file lock, an open Lucene index -- is released
+# when the JVM exits, which is later. Emptying a store in between is the
+# failure these are here to avoid, so this waits for the port to go quiet.
+#
+# Called with the label used in messages, the control script, and the port.
+function stop_service {
+    local label=$1 script=$2 port=$3
+    "$script" stop >> $DRAT_HOME/logs/drat.log 2>&1 || true
+    local waited=0
+    while [[ -n $(check_port "$port") ]] && [[ $waited -lt 30 ]]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if [[ -n $(check_port "$port") ]]; then
+        echo "The $label is still listening on $port after ${waited}s."
+        echo "What it holds is being left alone."
+        return 1
+    fi
+}
+
+function start_service {
+    local label=$1 script=$2 port=$3
+    "$script" start >> $DRAT_HOME/logs/drat.log 2>&1 || true
+    local waited=0
+    while [[ ! -n $(check_port "$port") ]] && [[ $waited -lt 30 ]]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if [[ ! -n $(check_port "$port") ]]; then
+        echo "The $label did not come back on $port after ${waited}s."
+        echo "Start it with '$script start' before running."
+        exit 1
+    fi
+}
+
 function reset_workflow_instances {
     local props="$DRAT_HOME/workflow/etc/workflow.properties"
     if [ ! -f "$props" ]; then
@@ -338,10 +408,31 @@ function reset_workflow_instances {
                 echo "No JDBC url configured; leaving workflow instances alone"
                 return 0
             fi
+            # An HSQLDB file database belongs to one process at a time, and
+            # the workflow manager holds it open for as long as it runs. A
+            # clear attempted underneath it fails with "Database lock
+            # acquisition failure" and reset carries on, so the run that was
+            # meant to start clean starts on top of every instance from the
+            # last one. Nothing is in flight at reset, so the manager can be
+            # put down for the few seconds this takes.
+            local bounced=false
+            if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port 9001) ]]; then
+                echo "Stopping the workflow manager to release $url"
+                if ! stop_service "workflow manager" \
+                        "$DRAT_HOME/workflow/bin/wmgr" 9001; then
+                    return 0
+                fi
+                bounced=true
+            fi
             echo "Clearing workflow instances from $url"
             "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" \
                 org.apache.oodt.cas.workflow.tools.ClearWorkflowInstances \
                 "$url" "${user:-sa}" "$pass"
+            if [[ "$bounced" == "true" ]]; then
+                echo "Restarting the workflow manager"
+                start_service "workflow manager" \
+                    "$DRAT_HOME/workflow/bin/wmgr" 9001
+            fi
             ;;
         *LuceneWorkflowInstanceRepositoryFactory*)
             local idx
@@ -462,6 +553,13 @@ function reset {
                 rm -rf $DRAT_HOME/data/archive/*
                 echo "rm -rf $DRAT_HOME/data/jobs/*"
                 rm -rf $DRAT_HOME/data/jobs/*
+                # The same two stores the live reset clears. Removing
+                # data/workflow empties a Lucene instance repository and
+                # filemgr/catalog a Lucene catalog, but a deployment holding
+                # either in a database keeps everything through an offline
+                # reset -- which is the one that looks the most thorough.
+                reset_workflow_instances
+                reset_file_manager_catalog
                 echo "Please restart OODT with '\$DRAT_HOME/bin/oodt start' if you wish to run another crawl."
             ;;
             [Nn]*)
