@@ -339,7 +339,8 @@ function reset_workflow_instances {
                 return 0
             fi
             echo "Clearing workflow instances from $url"
-            "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" drat.tools.ClearWorkflowInstances \
+            "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" \
+                org.apache.oodt.cas.workflow.tools.ClearWorkflowInstances \
                 "$url" "${user:-sa}" "$pass"
             ;;
         *LuceneWorkflowInstanceRepositoryFactory*)
