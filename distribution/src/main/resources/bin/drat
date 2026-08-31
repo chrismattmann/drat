@@ -253,6 +253,67 @@ function reset_running {
     solr_delete_all drat
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*
+    reset_workflow_instances
+}
+
+# Empty the workflow instance repository.
+#
+# Reset cleared the Solr core, the archive and the job directories and left
+# every workflow instance behind, so a "reset" deployment came back up still
+# holding the previous run's instances -- and an operations view showed them
+# alongside the new ones with no way to tell which run they belonged to.
+#
+# Which store to clear depends on how the deployment is configured, so read
+# it rather than assume. The two OODT ships are a Lucene index, where the
+# instances are the directory, and a JDBC database, where they are rows: for
+# the second, deleting the files would take the schema with them and the
+# workflow manager would start against a database with no tables.
+function reset_workflow_instances {
+    local props="$DRAT_HOME/workflow/etc/workflow.properties"
+    if [ ! -f "$props" ]; then
+        echo "No workflow.properties at $props; leaving instances alone"
+        return 0
+    fi
+
+    local factory
+    factory=$(grep -E '^[[:space:]]*workflow.engine.instanceRep.factory' "$props" \
+        | tail -1 | cut -d= -f2- | tr -d '[:space:]')
+
+    case "$factory" in
+        *DataSourceWorkflowInstanceRepositoryFactory*)
+            local url user pass
+            url=$(read_prop "$props" "org.apache.oodt.cas.workflow.instanceRep.datasource.jdbc.url")
+            user=$(read_prop "$props" "org.apache.oodt.cas.workflow.instanceRep.datasource.jdbc.user")
+            pass=$(read_prop "$props" "org.apache.oodt.cas.workflow.instanceRep.datasource.jdbc.pass")
+            if [ -z "$url" ]; then
+                echo "No JDBC url configured; leaving workflow instances alone"
+                return 0
+            fi
+            echo "Clearing workflow instances from $url"
+            "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" drat.tools.ClearWorkflowInstances \
+                "$url" "${user:-sa}" "$pass"
+            ;;
+        *LuceneWorkflowInstanceRepositoryFactory*)
+            local idx
+            idx=$(read_prop "$props" "org.apache.oodt.cas.workflow.instanceRep.lucene.idxPath")
+            if [ -n "$idx" ] && [ -d "$idx" ]; then
+                echo "Clearing workflow instances from $idx"
+                rm -rf "${idx:?}/"*
+            fi
+            ;;
+        *)
+            echo "Workflow instance repository [$factory] is not one this can"
+            echo "clear; its instances are being left alone."
+            ;;
+    esac
+}
+
+# A property value with [DRAT_HOME] and friends resolved.
+function read_prop {
+    local file=$1 key=$2 value
+    value=$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | tail -1 | cut -d= -f2-)
+    value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    echo "${value//\[DRAT_HOME\]/$DRAT_HOME}"
 }
 
 function full_wipe_running {
