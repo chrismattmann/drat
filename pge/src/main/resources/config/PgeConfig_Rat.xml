@@ -20,7 +20,16 @@
      <cmd>FSEP="_|_"</cmd>
      <cmd>bash [DRAT_HOME]/pge/bin/rat_audit/copy_files.sh ${FILELIST} "${FSEP}" "[JobInputDir]"</cmd>-->
      <cmd>echo "Running Apache RAT on [JobInputDir]"</cmd>
-     <cmd>rat [JobInputDir] > [JobOutputDir]/rat_[MimeType]_[DateMilis].log || echo "Apache RAT exited $?"</cmd>
+     <!--
+       The output name carries the instance id as well as the timestamp.
+       A product's name has to be unique in the catalog, and this one was
+       built from the MIME type and a millisecond: the partitioner fans out
+       one audit per batch, so several audits of the same type run at once
+       and two starting in the same millisecond produced the same name. The
+       second was rejected -- "Failed to ingest product" -- and took its task
+       with it. Unique directories were not enough; the products need it too.
+     -->
+     <cmd>rat [JobInputDir] > [JobOutputDir]/rat_[MimeType]_[DateMilis]_[JobId].log || echo "Apache RAT exited $?"</cmd>
   </exe>
 
   <!-- Files to ingest -->
