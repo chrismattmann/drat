@@ -472,17 +472,45 @@ function reset_file_manager_catalog {
 # Called with the label used in messages, the control script, and the port.
 function stop_service {
     local label=$1 script=$2 port=$3
+
+    # Which process is being stopped, before it stops. A closed port is not
+    # proof that the process behind it has gone: a workflow manager whose
+    # server had closed went on running, holding the instance database and
+    # refreshing its lock, while this reported the manager stopped. Every
+    # clear afterwards was refused by a lock whose owner had already been
+    # asked to stop. Waiting for the process as well as the port is what
+    # makes "stopped" mean stopped, against any version of the services.
+    local pid=
+    if command -v lsof > /dev/null 2>&1; then
+        pid=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)
+    fi
+
     "$script" stop >> $DRAT_HOME/logs/drat.log 2>&1 || true
     local waited=0
-    while [[ -n $(check_port "$port") ]] && [[ $waited -lt 30 ]]; do
+    while [[ $waited -lt 30 ]]; do
+        if [[ -z $(check_port "$port") ]] && ! service_alive "$pid"; then
+            return 0
+        fi
         sleep 1
         waited=$((waited + 1))
     done
+
     if [[ -n $(check_port "$port") ]]; then
         echo "The $label is still listening on $port after ${waited}s."
-        echo "What it holds is being left alone."
-        return 1
+    else
+        echo "The $label stopped listening on $port, but process ${pid} is"
+        echo "still running and may still hold what it opened."
     fi
+    echo "What it holds is being left alone."
+    return 1
+}
+
+# Whether the process that was listening is still about. No pid, nothing to
+# wait for -- either lsof is not here to ask or the port was already free.
+function service_alive {
+    local pid=$1
+    [[ -z "$pid" ]] && return 1
+    kill -0 "$pid" 2>/dev/null
 }
 
 function start_service {
@@ -498,6 +526,32 @@ function start_service {
         echo "Start it with '$script start' before running."
         exit 1
     fi
+}
+
+# Empty the instance database, waiting out the lock if it is still warm.
+#
+# Stopping the workflow manager frees the database, but not at the instant
+# the port closes: HSQLDB keeps a heartbeat in the lock file, and a clear
+# attempted too soon after the shutdown is refused with "Database lock
+# acquisition failure ... checkHeartbeat". The manager had gone; its lock had
+# not caught up. It is a race, so it failed on some runs and not others.
+function clear_instances {
+    local url=$1 user=$2 pass=$3
+    local attempt=1 attempts=8
+    while [[ $attempt -le $attempts ]]; do
+        if "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" \
+                org.apache.oodt.cas.workflow.tools.ClearWorkflowInstances \
+                "$url" "$user" "$pass"; then
+            return 0
+        fi
+        if [[ $attempt -lt $attempts ]]; then
+            echo "  the database is still locked; waiting for it to be released"
+            sleep 5
+        fi
+        attempt=$((attempt + 1))
+    done
+    echo "Could not clear the workflow instances after ${attempts} attempts."
+    return 1
 }
 
 function reset_workflow_instances {
@@ -537,15 +591,23 @@ function reset_workflow_instances {
                 fi
                 bounced=true
             fi
+            local cleared=0
             echo "Clearing workflow instances from $url"
-            "$RUNJAVA" -cp "$DRAT_HOME/workflow/lib/*" \
-                org.apache.oodt.cas.workflow.tools.ClearWorkflowInstances \
-                "$url" "${user:-sa}" "$pass"
+            clear_instances "$url" "${user:-sa}" "$pass" || cleared=$?
+
+            # Whatever happened to the clear, the manager goes back up. It was
+            # stopped by this function and nothing else will start it: a clear
+            # that failed used to exit the script here, under set -e, between
+            # the stop and the restart, and leave the deployment without a
+            # workflow manager at all. OPSUI then showed the manager down and
+            # no job counts, which is a much worse outcome than a reset that
+            # did not clear.
             if [[ "$bounced" == "true" ]]; then
                 echo "Restarting the workflow manager"
                 start_service "workflow manager" \
                     "$DRAT_HOME/workflow/bin/wmgr" 9001
             fi
+            return $cleared
             ;;
         *LuceneWorkflowInstanceRepositoryFactory*)
             local idx
