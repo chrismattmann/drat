@@ -36,7 +36,17 @@
 
     <metadata key="ProductionDateTime" val="[DATE.UTC]"/>
     <metadata key="DateMilis" val="[DATE_TO_MILLIS([ProductionDateTime],UTC_FORMAT,1970-01-01)]"/>
-    <metadata key="JobDir" val="[DRAT_HOME]/data/jobs/rataggregate/[DateMilis]"/>
+    <!--
+      The job directory carries the instance id as well as the timestamp.
+      DateMilis has millisecond resolution, and RAT audits are fanned out one
+      per MIME type and start together: two that begin in the same
+      millisecond named the same directory, so they would have staged their
+      inputs over each other. What actually happened is that the second one
+      failed on "mkdirs for logs directory return false" -- the PGE refusing
+      to share a working directory, which is the right instinct. JobId is the
+      workflow instance id and is unique per job.
+    -->
+    <metadata key="JobDir" val="[DRAT_HOME]/data/jobs/rataggregate/[DateMilis]_[JobId]"/>
     <metadata key="JobInputDir" val="[JobDir]/input"/>
     <metadata key="JobOutputDir" val="[JobDir]/output"/>
     <metadata key="JobLogDir" val="[JobDir]/logs"/>
