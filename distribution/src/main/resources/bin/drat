@@ -254,6 +254,55 @@ function reset_running {
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*
     reset_workflow_instances
+    reset_file_manager_catalog
+}
+
+# Empty the file manager catalog.
+#
+# Reset already clears the Solr core, which is an index of this catalog, so
+# leaving the catalog itself populated left the two disagreeing: Solr said
+# the repository was empty and the file manager still held every product
+# from the last run. The audit's own output accumulated there too -- RatLog
+# and RatAggregateLog grow with every run and nothing ever removed them.
+#
+# This means a reset implies a re-crawl, which is what "drat go" does
+# anyway: crawl, index, map, reduce. A bare "drat reset" followed by "drat
+# index" now indexes nothing, because there is nothing catalogued to index.
+function reset_file_manager_catalog {
+    local props="$DRAT_HOME/filemgr/etc/filemgr.properties"
+    if [ ! -f "$props" ]; then
+        echo "No filemgr.properties at $props; leaving the catalog alone"
+        return 0
+    fi
+
+    local factory
+    factory=$(grep -E '^[[:space:]]*filemgr.catalog.factory' "$props" \
+        | tail -1 | cut -d= -f2- | tr -d '[:space:]')
+
+    case "$factory" in
+        *LuceneCatalogFactory*)
+            local idx
+            idx=$(read_prop "$props" "org.apache.oodt.cas.filemgr.catalog.lucene.idxPath")
+            if [ -n "$idx" ] && [ -d "$idx" ]; then
+                echo "Clearing the file manager catalog at $idx"
+                rm -rf "${idx:?}/"*
+            fi
+            ;;
+        *SolrCatalogFactory*)
+            # The catalog is a Solr core; emptying the core empties it.
+            local core
+            core=$(read_prop "$props" "org.apache.oodt.cas.filemgr.catalog.solr.url")
+            core=${core##*/}
+            if [ -n "$core" ]; then
+                echo "Clearing the file manager catalog core $core"
+                solr_delete_all "$core"
+            fi
+            ;;
+        *)
+            echo "File manager catalog [$factory] is not one this can clear;"
+            echo "its products are being left alone."
+            ;;
+    esac
 }
 
 # Empty the workflow instance repository.
