@@ -111,6 +111,72 @@ public class TestProcessDratWrapper extends TestCase {
     assertFalse(wrapper.isRunning(finished));
     
   }
+
+  /**
+   * The engine's own vocabulary decides, when it has one to offer. These are
+   * W2's statuses, and not one of them appears in the built-in lists: without
+   * asking, every one of them was read as finished.
+   */
+  public void testTheEngineSaysWhatIsRunning() {
+    ProcessDratWrapper wrapper = wrapperReporting(w2Categories());
+
+    assertTrue(wrapper.isRunning("Executing"));
+    assertTrue(wrapper.isRunning("PreConditionEval"));
+    assertTrue(wrapper.isRunning("WaitingOnResources"));
+    assertTrue(wrapper.isRunning("Queued"));
+    assertFalse(wrapper.isRunning("Success"));
+    assertFalse(wrapper.isRunning("Failure"));
+  }
+
+  /**
+   * With no lifecycle to read -- which is what W1 reports, its statuses being
+   * fixed constants -- the built-in lists answer, and they are right for it.
+   */
+  public void testTheBuiltInStatusesRemainTheFallback() {
+    ProcessDratWrapper wrapper = wrapperReporting(
+        new java.util.HashMap<String, String>());
+
+    assertTrue(wrapper.isRunning("PGE EXEC"));
+    assertTrue(wrapper.isRunning("QUEUED"));
+    assertFalse(wrapper.isRunning("FINISHED"));
+  }
+
+  /** A status the engine does not name falls through to the same place. */
+  public void testAStatusTheEngineDoesNotNameFallsBack() {
+    ProcessDratWrapper wrapper = wrapperReporting(w2Categories());
+
+    assertTrue(wrapper.isRunning("PGE EXEC"));
+    assertFalse(wrapper.isRunning("something nobody declared"));
+  }
+
+  private java.util.Map<String, String> w2Categories() {
+    java.util.Map<String, String> categories =
+        new java.util.HashMap<String, String>();
+    categories.put("Null", "initial");
+    categories.put("Loaded", "initial");
+    categories.put("Queued", "waiting");
+    categories.put("WaitingOnResources", "waiting");
+    categories.put("PreConditionEval", "running");
+    categories.put("Executing", "running");
+    categories.put("Success", "done");
+    categories.put("Failure", "done");
+    return categories;
+  }
+
+  private ProcessDratWrapper wrapperReporting(
+      java.util.Map<String, String> categories) {
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    wrapper.setStatusCategories(categories);
+    return wrapper;
+  }
+
+  @Override
+  protected void tearDown() throws Exception {
+    // The wrapper is a singleton, so what one test says the engine reports
+    // would otherwise be what the next one sees.
+    ProcessDratWrapper.getInstance().setStatusCategories(null);
+    super.tearDown();
+  }
   
   
 

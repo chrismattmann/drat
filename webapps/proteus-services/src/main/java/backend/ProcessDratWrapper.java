@@ -57,6 +57,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -86,6 +88,9 @@ public class ProcessDratWrapper extends GenericProcess
       "RatAggregateLog" };
 
   private String status;
+
+  /** Cached lifecycle stages by status name; see statusCategories(). */
+  private Map<String, String> statusCategories;
 
   private FileManagerUtils fm;
   private String path;
@@ -521,8 +526,32 @@ public class ProcessDratWrapper extends GenericProcess
   }  
   
 
+  /**
+   * Whether a status means the work is still going.
+   *
+   * <p>
+   * Asked of the workflow manager, which reads it from the lifecycle its
+   * engine was configured with. The lists below are W1's vocabulary, and
+   * they were the only answer here: none of those names appear in W2's, so
+   * every running instance of that engine fell through to "assuming
+   * finished" and this reported a map that was still fanning out as done.
+   * The reduce that followed ran against a fraction of it.
+   * </p>
+   *
+   * <p>
+   * They remain as the fallback, because they are right for the engine they
+   * were written for. An engine with no lifecycle to read reports nothing,
+   * and W1's statuses are fixed constants rather than declared ones.
+   * </p>
+   */
   @VisibleForTesting
   protected boolean isRunning(String status) {
+    String category = statusCategories().get(status);
+    if (category != null) {
+      // "done" is the stage a lifecycle puts its terminal states in.
+      return !"done".equals(category);
+    }
+
     List<String> runningStates = Arrays.asList("CREATED", "QUEUED", "STARTED",
         "RSUBMIT", "PGE EXEC", "STAGING INPUT", "CRAWLING");
     List<String> finishedStates = Arrays.asList("PAUSED", "METMISS",
@@ -539,6 +568,39 @@ public class ProcessDratWrapper extends GenericProcess
         return false;
       }
     }
+  }
+
+  /**
+   * The stage each status belongs to, as this deployment's engine declares
+   * it. Read once: a lifecycle does not change while the manager runs, and
+   * this is asked for every instance on every poll.
+   */
+  /**
+   * For tests, which need to say what the engine reports without one running.
+   * Null puts it back to reading the manager.
+   */
+  @VisibleForTesting
+  void setStatusCategories(Map<String, String> categories) {
+    this.statusCategories = categories;
+  }
+
+  @VisibleForTesting
+  protected Map<String, String> statusCategories() {
+    if (statusCategories == null) {
+      Map<String, String> read = new HashMap<String, String>();
+      try {
+        Map<String, String> reported = OodtClientPool.withWorkflowManagerClient(
+            client -> client.getWorkflowStatusCategories());
+        if (reported != null) {
+          read.putAll(reported);
+        }
+      } catch (Exception e) {
+        LOG.info("Unable to read status categories from the workflow manager: "
+            + e.getMessage() + ": falling back on the built-in statuses");
+      }
+      statusCategories = read;
+    }
+    return statusCategories;
   }
 
   private String cleanAndSplit(String s) {
