@@ -48,6 +48,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.time.Instant;
@@ -584,21 +589,65 @@ public class ProcessDratWrapper extends GenericProcess
     this.statusCategories = categories;
   }
 
+  /**
+   * Read the stages from the services this deployment is already running.
+   *
+   * <p>
+   * Over HTTP rather than through the workflow client. DRAT builds against a
+   * released Mnemosyne, so a method added to that client cannot be called
+   * here until it ships; an endpoint that grows a field is readable as soon
+   * as the deployment runs a version that sends it, and simply absent before
+   * then. Absent means falling back, which is what a deployment on an older
+   * Mnemosyne should do.
+   * </p>
+   */
+  private Map<String, String> readStatusCategories() {
+    Map<String, String> read = new HashMap<String, String>();
+    HttpURLConnection connection = null;
+    try {
+      URL url = new URL(ProteusEndpointConstants.BASE_URL
+          + ProteusEndpointConstants.Services.WORKFLOW_STATUSES);
+      connection = (HttpURLConnection) url.openConnection();
+      connection.setConnectTimeout(2000);
+      connection.setReadTimeout(5000);
+      if (connection.getResponseCode() >= 400) {
+        return read;
+      }
+      InputStream stream = connection.getInputStream();
+      try {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] bytes = new byte[4096];
+        int count;
+        while ((count = stream.read(bytes)) != -1) {
+          buffer.write(bytes, 0, count);
+        }
+        JsonObject body = JsonParser.parseString(
+            new String(buffer.toByteArray(), StandardCharsets.UTF_8))
+            .getAsJsonObject();
+        if (body.has("categories") && body.get("categories").isJsonObject()) {
+          JsonObject categories = body.getAsJsonObject("categories");
+          for (String status : categories.keySet()) {
+            read.put(status, categories.get(status).getAsString());
+          }
+        }
+      } finally {
+        stream.close();
+      }
+    } catch (Exception e) {
+      LOG.info("Unable to read status categories: " + e.getMessage()
+          + ": falling back on the built-in statuses");
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
+    }
+    return read;
+  }
+
   @VisibleForTesting
   protected Map<String, String> statusCategories() {
     if (statusCategories == null) {
-      Map<String, String> read = new HashMap<String, String>();
-      try {
-        Map<String, String> reported = OodtClientPool.withWorkflowManagerClient(
-            client -> client.getWorkflowStatusCategories());
-        if (reported != null) {
-          read.putAll(reported);
-        }
-      } catch (Exception e) {
-        LOG.info("Unable to read status categories from the workflow manager: "
-            + e.getMessage() + ": falling back on the built-in statuses");
-      }
-      statusCategories = read;
+      statusCategories = readStatusCategories();
     }
     return statusCategories;
   }
