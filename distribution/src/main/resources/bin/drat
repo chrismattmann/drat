@@ -61,7 +61,7 @@ function print_help {
     echo "       drat"
     echo "            go [--full-wipe] [--exclude <name>[,<name>...]]... <path to repo>"
     echo "                                                                   | start OODT and analyze the repository"
-    echo "            audit                                                      | run the whole audit as one workflow"
+    echo "            audit [--exclude <name>[,<name>...]]... <path to repo>     | run the whole audit as one workflow"
     echo "            crawl [--exclude <name>[,<name>...]]... <path to repo>	| crawl the repository files"
     echo "                                                                   | --exclude may be repeated, e.g."
     echo "                                                                   |   --exclude target --exclude .git"
@@ -242,12 +242,45 @@ function unmark_run {
 # afterwards. This submits it and says nothing else about sequencing.
 function audit {
     check_services_running
-    check_num_args "audit" $# 0
+    local -a EX=()
+    while [[ "${1:-}" == "--exclude" ]]; do
+        if [[ $# -lt 2 ]]; then
+            echo "Expected an exclude value after '--exclude'."
+            exit 1
+        fi
+        EX+=("$2")
+        shift 2
+    done
+    local repo=${1:-}
+    if [[ -z "$repo" ]]; then
+        echo "Expected a repo path for 'audit'."
+        exit 1
+    fi
+
+    # What to crawl travels with the run, so one task definition serves every
+    # repository. So does the exclusion regex: which directories to leave out
+    # belongs to the repository being audited, not to the task that crawls
+    # all of them.
+    local exclude=
+    if [[ ${#EX[@]} -gt 0 ]]; then
+        exclude=$(build_exclude_regex "${EX[@]}")
+        echo "Excluding path components: ${EX[*]}"
+    fi
+
     pushd $DRAT_HOME/workflow/bin >> $DRAT_HOME/logs/drat.log 2>&1
-    ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
-        --eventName "$AUDIT_WORKFLOW_ID"
+    if [[ -n "$exclude" ]]; then
+        ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
+            --eventName "$AUDIT_WORKFLOW_ID" --metaData \
+            --key ProductPath "$repo" \
+            --key SysProp.DRAT_EXCLUDE "$exclude"
+    else
+        ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
+            --eventName "$AUDIT_WORKFLOW_ID" --metaData \
+            --key ProductPath "$repo"
+    fi
     popd >> $DRAT_HOME/logs/drat.log 2>&1
 }
+
 
 # Every workflow instance this deployment currently holds, as
 # "<id>\t<ended?>".
@@ -727,29 +760,25 @@ function go {
         full_wipe_running
     fi
     reset_running
-    echo "Crawling $PRODUCT_PATH"
-    mark_run crawl "$PRODUCT_PATH"
-    if [[ ${#EXCLUDE_ARGS[@]} -gt 0 ]]; then
-        crawl "${EXCLUDE_ARGS[@]}" "$PRODUCT_PATH"
-    else
-        crawl "$PRODUCT_PATH"
-    fi
-    sleep 3
-    echo
-    echo "Indexing $PRODUCT_PATH"
-    mark_run index "$PRODUCT_PATH"
-    index $PRODUCT_PATH
-    sleep 3
-    echo
-    # One instance for the whole audit, rather than a mapper and a reducer
-    # submitted separately with the ordering between them kept here. What
-    # follows a run afterwards has one thing to follow, and the engine holds
-    # the ordering it was always the right place for.
-    echo "Starting the audit"
+    # One instance for the whole run: crawl, index, partition, aggregate.
+    # This used to crawl and index itself and then submit the rest, so the
+    # first two steps happened where nothing could see them and the ordering
+    # between all four lived here. The engine holds the ordering now, and
+    # every step is an instance like any other.
+    #
+    # Still marked, because the engine only knows about a run once the
+    # workflow is submitted, and Proteus asks before that. The crawl and
+    # index phases are gone from the marker with the steps themselves: from
+    # here there is one thing happening, and it is the audit.
+    echo "Auditing $PRODUCT_PATH"
     mark_run audit "$PRODUCT_PATH"
     local before
     before=$(instance_ids)
-    audit
+    if [[ ${#EXCLUDE_ARGS[@]} -gt 0 ]]; then
+        audit "${EXCLUDE_ARGS[@]}" "$PRODUCT_PATH"
+    else
+        audit "$PRODUCT_PATH"
+    fi
     echo
     wait_for_audit "$before"
     unmark_run
@@ -837,7 +866,7 @@ case $1 in
     ;;
     audit)
         shift
-        audit
+        audit "$@"
     ;;
     go)
         shift

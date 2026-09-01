@@ -22,8 +22,8 @@
   the same id, so nothing downstream has to know which engine ran it: a run
   is one instance of urn:drat:AuditPipeline either way.
 
-  W1 has no nesting, so the two phases W2 spells as sub-workflows are simply
-  the two tasks in order. The ordering that matters is not the list; it is
+  W1 has no nesting, so the phases W2 spells as sub-workflows are simply the
+  tasks in order. The ordering that matters is not the list; it is
   the gate on RatAggregator in tasks.xml, which is what keeps the aggregate
   from running while audits are still landing. This file only says which
   tasks, and in what order.
@@ -31,6 +31,8 @@
 <cas:workflow xmlns:cas="http://oodt.jpl.nasa.gov/1.0/cas"
               id="urn:drat:AuditPipeline" name="DRAT Audit Pipeline">
   <tasks>
+    <task id="urn:drat:RepoCrawler"/>
+    <task id="urn:drat:SolrIndexer"/>
     <task id="urn:drat:MimePartitioner"/>
     <task id="urn:drat:RatAggregator"/>
   </tasks>

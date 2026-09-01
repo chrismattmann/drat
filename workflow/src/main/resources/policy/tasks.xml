@@ -34,6 +34,37 @@
     </configuration>
   </task>
 
+  <!--
+    The crawl and the index, as tasks. Same classes and the same
+    configuration as policy-wengine/drat-audit.xml declares for W2: what to
+    crawl arrives with the run under ProductPath, and the exclusion regex as
+    SysProp.DRAT_EXCLUDE, so one definition serves whichever repository is
+    being audited.
+  -->
+  <task id="urn:drat:RepoCrawler" name="RepoCrawler"
+    class="org.apache.oodt.cas.crawl.workflow.CrawlerTaskInstance">
+        <conditions/>
+        <configuration>
+          <property name="CrawlerBeanRepo" value="[DRAT_HOME]/crawler/policy/crawler-config.xml" envReplace="true"/>
+          <property name="CrawlerId" value="MetExtractorProductCrawler"/>
+          <property name="MetExtractor" value="org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor"/>
+          <property name="MetExtractorConfig" value="[DRAT_HOME]/extractors/code/default.cpr.conf" envReplace="true"/>
+          <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+          <property name="ClientTransferer" value="org.apache.oodt.cas.filemgr.datatransfer.InPlaceDataTransferFactory"/>
+          <property name="PreCondIds" value="RegExExcludeComparator"/>
+        </configuration>
+  </task>
+
+  <task id="urn:drat:SolrIndexer" name="SolrIndexer"
+    class="org.apache.oodt.cas.crawl.workflow.SolrIndexerTaskInstance">
+        <conditions/>
+        <configuration>
+          <property name="SolrUrl" value="[SOLR_URL]/drat" envReplace="true"/>
+          <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+          <property name="IndexerConfig" value="[DRAT_HOME]/filemgr/etc/indexer.properties" envReplace="true"/>
+        </configuration>
+  </task>
+
   <task id="urn:drat:MimePartitioner" name="MimePartitioner" 
     class="org.apache.oodt.cas.pge.StdPGETaskInstance">
         <conditions/>
