@@ -137,12 +137,33 @@ public class ProcessDratWrapper extends GenericProcess
   }
   
   
+  /**
+   * What is running, from where it is written down rather than from memory.
+   *
+   * <p>
+   * This used to return a field, so it described what this process was doing
+   * and nothing else. A run started from the command line was invisible here
+   * -- not because the two disagreed but because the fact lived in the heap
+   * of whichever one you were not looking at. Everything the UI shows about a
+   * running audit hangs off this one answer, so reading it from disk is what
+   * makes a command line run visible without the UI changing at all.
+   * </p>
+   */
   public String getStatus() {
+    String running = RunMarker.read("phase");
+    if (running != null) {
+      return running;
+    }
     return this.status;
   }
 
   public synchronized void setStatus(String status) {
     this.status = status;
+    if (STATUS_IDLE.equals(status)) {
+      RunMarker.clear();
+    } else {
+      RunMarker.write(status, "proteus", this.path);
+    }
   }
 
   @Override

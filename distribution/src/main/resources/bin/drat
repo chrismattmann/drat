@@ -206,6 +206,33 @@ function current_pges {
 }
 
 # Fire off the MapReduce reducer. Expects no arguments.
+# Write down what is running, so anything else can see it.
+#
+# The engine knows about the audit; nothing knows about the crawl and the
+# index, because those are not workflows -- this script runs them directly.
+# Proteus therefore could not see a run started here at all, and showed an
+# idle deployment while a crawl was going. Both sides write this file now, in
+# the directory both already write the current repository to.
+#
+# A stopgap on purpose: when the crawl and the index become workflow tasks the
+# engine will know about the whole run and this will have nothing left to say.
+function mark_run {
+    local phase=$1
+    local repo=${2:-}
+    local started
+    started=$(date +%s)000
+    {
+        printf '{"phase":"%s","startedBy":"cli","startedAt":"%s"' \
+            "$phase" "$started"
+        [[ -n "$repo" ]] && printf ',"repo":"%s"' "$repo"
+        printf '}\n'
+    } > "$DRAT_HOME/data/run"
+}
+
+function unmark_run {
+    rm -f "$DRAT_HOME/data/run"
+}
+
 # Start the audit: one workflow instance for partition, map and aggregate.
 #
 # The phases used to be submitted as three separate single-task dynamic
@@ -415,11 +442,20 @@ function reset_file_manager_catalog {
                 local bounced=false
                 if [[ -n $(check_port 9000) ]]; then
                     echo "Stopping the file manager to release $idx"
-                    if ! stop_service "file manager" \
+                    if stop_service "file manager" \
                             "$DRAT_HOME/filemgr/bin/filemgr" 9000; then
+                        bounced=true
+                    else
+                        # It has been asked to stop and has stopped serving,
+                        # so leaving now would leave the deployment without a
+                        # file manager -- the same way a failed clear used to
+                        # leave it without a workflow manager. Its catalog is
+                        # not touched, because something still holds it.
+                        echo "Restarting the file manager"
+                        start_service "file manager" \
+                            "$DRAT_HOME/filemgr/bin/filemgr" 9000
                         return 0
                     fi
-                    bounced=true
                 fi
                 # The directory, not its contents. A Lucene catalog is
                 # created when the directory is absent, so an emptied one
@@ -486,8 +522,11 @@ function stop_service {
     fi
 
     "$script" stop >> $DRAT_HOME/logs/drat.log 2>&1 || true
+    # Sixty, not thirty: a file manager closing a large Lucene index took
+    # longer than thirty seconds to exit, which was read as "still holding
+    # it" when it was only most of the way through letting go.
     local waited=0
-    while [[ $waited -lt 30 ]]; do
+    while [[ $waited -lt 60 ]]; do
         if [[ -z $(check_port "$port") ]] && ! service_alive "$pid"; then
             return 0
         fi
@@ -641,6 +680,11 @@ function full_wipe_running {
 # Attempt to automate crawling, indexing, mapping, and reducing. Expects 1 argument: the directory to analyze.
 function go {
     check_services_running
+    # However this ends -- finished, interrupted, or stopped by set -e on the
+    # first error -- it stops claiming to be running. A run that died during
+    # the crawl otherwise left the marker saying so, and Proteus went on
+    # reporting a crawl that had not existed for hours.
+    trap unmark_run EXIT
     FULL_WIPE=false
     local -a EXCLUDE_ARGS=()
     while [[ $# -gt 0 ]]; do
@@ -684,6 +728,7 @@ function go {
     fi
     reset_running
     echo "Crawling $PRODUCT_PATH"
+    mark_run crawl "$PRODUCT_PATH"
     if [[ ${#EXCLUDE_ARGS[@]} -gt 0 ]]; then
         crawl "${EXCLUDE_ARGS[@]}" "$PRODUCT_PATH"
     else
@@ -692,6 +737,7 @@ function go {
     sleep 3
     echo
     echo "Indexing $PRODUCT_PATH"
+    mark_run index "$PRODUCT_PATH"
     index $PRODUCT_PATH
     sleep 3
     echo
@@ -700,11 +746,13 @@ function go {
     # follows a run afterwards has one thing to follow, and the engine holds
     # the ordering it was always the right place for.
     echo "Starting the audit"
+    mark_run audit "$PRODUCT_PATH"
     local before
     before=$(instance_ids)
     audit
     echo
     wait_for_audit "$before"
+    unmark_run
 }
 
 # Reset drat to prepare for analyzing an entirely new repo. Expects no arguments.

@@ -30,6 +30,9 @@ public class FileConstants {
   public static final String DRAT_CLONES = buildDratSubdirectoryPath("/data/clones");
   public static final String DRAT_TEMP_UNZIPPED_PATH = buildDratSubdirectoryPath("/data/staging");
   public static final String CURRENT_REPO_DETAILS_FILE = buildDratSubdirectoryPath("/data/repo");
+
+  /** Which phase of a run is happening, and who started it. See RunMarker. */
+  public static final String CURRENT_RUN_FILE = buildDratSubdirectoryPath("/data/run");
   public static final String DRAT_TEMP_LOG_OUTPUT = buildDratSubdirectoryPath("/data/drat_output.log");
   public static final String SOLR_INDEXER_CONFIG_PATH = buildDratSubdirectoryPath("/filemgr/etc/indexer.properties");
 
