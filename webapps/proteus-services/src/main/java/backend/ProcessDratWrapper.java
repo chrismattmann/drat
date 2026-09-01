@@ -48,6 +48,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.time.Instant;
@@ -57,6 +62,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -86,6 +93,9 @@ public class ProcessDratWrapper extends GenericProcess
       "RatAggregateLog" };
 
   private String status;
+
+  /** Cached lifecycle stages by status name; see statusCategories(). */
+  private Map<String, String> statusCategories;
 
   private FileManagerUtils fm;
   private String path;
@@ -521,8 +531,32 @@ public class ProcessDratWrapper extends GenericProcess
   }  
   
 
+  /**
+   * Whether a status means the work is still going.
+   *
+   * <p>
+   * Asked of the workflow manager, which reads it from the lifecycle its
+   * engine was configured with. The lists below are W1's vocabulary, and
+   * they were the only answer here: none of those names appear in W2's, so
+   * every running instance of that engine fell through to "assuming
+   * finished" and this reported a map that was still fanning out as done.
+   * The reduce that followed ran against a fraction of it.
+   * </p>
+   *
+   * <p>
+   * They remain as the fallback, because they are right for the engine they
+   * were written for. An engine with no lifecycle to read reports nothing,
+   * and W1's statuses are fixed constants rather than declared ones.
+   * </p>
+   */
   @VisibleForTesting
   protected boolean isRunning(String status) {
+    String category = statusCategories().get(status);
+    if (category != null) {
+      // "done" is the stage a lifecycle puts its terminal states in.
+      return !"done".equals(category);
+    }
+
     List<String> runningStates = Arrays.asList("CREATED", "QUEUED", "STARTED",
         "RSUBMIT", "PGE EXEC", "STAGING INPUT", "CRAWLING");
     List<String> finishedStates = Arrays.asList("PAUSED", "METMISS",
@@ -539,6 +573,83 @@ public class ProcessDratWrapper extends GenericProcess
         return false;
       }
     }
+  }
+
+  /**
+   * The stage each status belongs to, as this deployment's engine declares
+   * it. Read once: a lifecycle does not change while the manager runs, and
+   * this is asked for every instance on every poll.
+   */
+  /**
+   * For tests, which need to say what the engine reports without one running.
+   * Null puts it back to reading the manager.
+   */
+  @VisibleForTesting
+  void setStatusCategories(Map<String, String> categories) {
+    this.statusCategories = categories;
+  }
+
+  /**
+   * Read the stages from the services this deployment is already running.
+   *
+   * <p>
+   * Over HTTP rather than through the workflow client. DRAT builds against a
+   * released Mnemosyne, so a method added to that client cannot be called
+   * here until it ships; an endpoint that grows a field is readable as soon
+   * as the deployment runs a version that sends it, and simply absent before
+   * then. Absent means falling back, which is what a deployment on an older
+   * Mnemosyne should do.
+   * </p>
+   */
+  private Map<String, String> readStatusCategories() {
+    Map<String, String> read = new HashMap<String, String>();
+    HttpURLConnection connection = null;
+    try {
+      URL url = new URL(ProteusEndpointConstants.BASE_URL
+          + ProteusEndpointConstants.Services.WORKFLOW_STATUSES);
+      connection = (HttpURLConnection) url.openConnection();
+      connection.setConnectTimeout(2000);
+      connection.setReadTimeout(5000);
+      if (connection.getResponseCode() >= 400) {
+        return read;
+      }
+      InputStream stream = connection.getInputStream();
+      try {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] bytes = new byte[4096];
+        int count;
+        while ((count = stream.read(bytes)) != -1) {
+          buffer.write(bytes, 0, count);
+        }
+        JsonObject body = JsonParser.parseString(
+            new String(buffer.toByteArray(), StandardCharsets.UTF_8))
+            .getAsJsonObject();
+        if (body.has("categories") && body.get("categories").isJsonObject()) {
+          JsonObject categories = body.getAsJsonObject("categories");
+          for (String status : categories.keySet()) {
+            read.put(status, categories.get(status).getAsString());
+          }
+        }
+      } finally {
+        stream.close();
+      }
+    } catch (Exception e) {
+      LOG.info("Unable to read status categories: " + e.getMessage()
+          + ": falling back on the built-in statuses");
+    } finally {
+      if (connection != null) {
+        connection.disconnect();
+      }
+    }
+    return read;
+  }
+
+  @VisibleForTesting
+  protected Map<String, String> statusCategories() {
+    if (statusCategories == null) {
+      statusCategories = readStatusCategories();
+    }
+    return statusCategories;
   }
 
   private String cleanAndSplit(String s) {

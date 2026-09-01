@@ -82,6 +82,16 @@ public class ProteusEndpointConstants {
     public static final String MIME_TYPE_BREAKDOWN = SOLR_BASE_URL + "/solr/drat";
     public static final String FILE_MANAGER_PRODUCT = "/opsui";
     public static final String HEALTH_MONITOR = "/pcs/services/health";
+
+    /**
+     * What the deployment's workflow manager declares about its own statuses,
+     * including which lifecycle stage each belongs to. Read over HTTP rather
+     * than through the workflow client: DRAT builds against a released
+     * Mnemosyne, so a method added there is not callable here until it ships,
+     * while an endpoint that grows a field is readable as soon as the
+     * deployment runs one that sends it.
+     */
+    public static final String WORKFLOW_STATUSES = "/pcs/services/workflow/statuses";
     public static final String RAT_INSTANCES_MONITOR = "/opsui/instances";
   }
 }
