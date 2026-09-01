@@ -35,6 +35,8 @@ import backend.AbstractDratWrapper;
 import backend.AbstractOodtWrapper;
 import backend.FileConstants;
 import backend.ProcessDratWrapper;
+import backend.RunMarker;
+import com.google.gson.JsonObject;
 import backend.ProcessOodtWrapper;
 
 @Path("/drat")
@@ -99,6 +101,42 @@ public class DratRestResource {
     dratWrapper.fullReset();
   }
   
+  /**
+   * The run that is happening, whoever started it.
+   *
+   * <p>
+   * Answers the question Proteus could not previously ask: is there a DRAT
+   * run in progress, and what is it doing? The phase comes from the marker
+   * that both this and the command line write, and the repository from the
+   * file both already wrote. Nothing here depends on Proteus having been the
+   * one to start it.
+   * </p>
+   */
+  @GET
+  @Path("/run")
+  @Produces(MediaType.APPLICATION_JSON)
+  public String currentRun() {
+    JsonObject run = new JsonObject();
+    String phase = RunMarker.read("phase");
+    run.addProperty("running", phase != null);
+    if (phase != null) {
+      run.addProperty("phase", phase);
+      String startedBy = RunMarker.read("startedBy");
+      if (startedBy != null) {
+        run.addProperty("startedBy", startedBy);
+      }
+      String startedAt = RunMarker.read("startedAt");
+      if (startedAt != null) {
+        run.addProperty("startedAt", startedAt);
+      }
+      String repo = RunMarker.read("repo");
+      if (repo != null) {
+        run.addProperty("repo", repo);
+      }
+    }
+    return run.toString();
+  }
+
   @GET
   @Path("/currentrepo")
   @Produces(MediaType.TEXT_PLAIN)
