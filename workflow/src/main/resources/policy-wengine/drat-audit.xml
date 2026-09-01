@@ -39,6 +39,21 @@
   <workflow id="urn:drat:AuditPipeline" name="DRAT Audit Pipeline"
             execution="sequential">
 
+    <!--
+      Bring the repository into the catalog, and publish the catalog to Solr.
+
+      These were done outside the engine, by whichever of the command line or
+      Proteus was asked, so nothing scheduled them, nothing recorded that they
+      were happening, and a run only became visible once the partitioner was
+      submitted. Inside the pipeline they are instances like any other, and
+      the ordering the caller used to keep is the engine's.
+    -->
+    <workflow id="urn:drat:IngestPhase" name="Ingest Phase"
+              execution="sequential">
+      <task id-ref="urn:drat:RepoCrawler"/>
+      <task id-ref="urn:drat:SolrIndexer"/>
+    </workflow>
+
     <!-- Partition the crawled corpus by mime type and fan out RatCodeAudit jobs. -->
     <workflow id="urn:drat:PartitionPhase" name="Partition Phase"
               execution="sequential">
@@ -61,6 +76,37 @@
     </workflow>
 
   </workflow>
+
+  <!--
+    What to crawl comes from the run, under ProductPath, so this definition
+    serves whichever repository is being audited. SysProp.DRAT_EXCLUDE is set
+    the same way: the crawler's precondition beans read ${DRAT_EXCLUDE} as a
+    placeholder, and which directories to leave out belongs to the repository,
+    not to the task.
+  -->
+  <task id="urn:drat:RepoCrawler" name="RepoCrawler"
+        class="org.apache.oodt.cas.crawl.workflow.CrawlerTaskInstance">
+    <conditions/>
+    <configuration>
+      <property name="CrawlerBeanRepo" value="[DRAT_HOME]/crawler/policy/crawler-config.xml" envReplace="true"/>
+      <property name="CrawlerId" value="MetExtractorProductCrawler"/>
+      <property name="MetExtractor" value="org.apache.oodt.cas.metadata.extractors.CopyAndRewriteExtractor"/>
+      <property name="MetExtractorConfig" value="[DRAT_HOME]/extractors/code/default.cpr.conf" envReplace="true"/>
+      <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+      <property name="ClientTransferer" value="org.apache.oodt.cas.filemgr.datatransfer.InPlaceDataTransferFactory"/>
+      <property name="PreCondIds" value="RegExExcludeComparator"/>
+    </configuration>
+  </task>
+
+  <task id="urn:drat:SolrIndexer" name="SolrIndexer"
+        class="org.apache.oodt.cas.crawl.workflow.SolrIndexerTaskInstance">
+    <conditions/>
+    <configuration>
+      <property name="SolrUrl" value="[SOLR_URL]/drat" envReplace="true"/>
+      <property name="FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
+      <property name="IndexerConfig" value="[DRAT_HOME]/filemgr/etc/indexer.properties" envReplace="true"/>
+    </configuration>
+  </task>
 
   <task id="urn:drat:MimePartitioner" name="MimePartitioner"
         class="org.apache.oodt.cas.pge.StdPGETaskInstance">
