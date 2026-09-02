@@ -71,6 +71,7 @@ function print_help {
     echo "            help                  					| print this message"
     echo "            reset                 					| clear runtime crawl state, preserving DRAT stats"
     echo "            delstats                                                    | clear collected DRAT stats index"
+    echo "            redeploy [--from <drat source>] [webapp...]                | replace the deployed webapps with freshly built ones"
 }
 
 function print_ui_info {
@@ -885,6 +886,136 @@ function delstats {
 }
 
 # Start parsing the arguments.
+
+# The webapps, and the directory each is unpacked into. Kept in step with
+# distribution/pom.xml, which unpacks the same artifacts into the same names
+# when a distribution is built; this is the same operation against a
+# deployment that already exists.
+DRAT_WEBAPPS="opsui:opsui pcs-services:pcs fmprod:fmprod proteus-services:proteus-services viz:viz proteus:proteus"
+
+# Replace the deployed webapps with freshly built ones.
+#
+# A deployment's webapps are unpacked once, when the distribution is built,
+# and nothing afterwards updates them. Rebuilding a dependency and dropping
+# its jar into the service lib directories -- which is how every other part of
+# a deployment is refreshed -- leaves the webapps exactly as they were, and a
+# webapp that serves a REST API is not obviously stale: it answers, with the
+# code it was built with. A field added to the workflow instance API read
+# empty for a full day of debugging because the jar had been redeployed eight
+# times and the webapp holding the code that serializes it had not been
+# redeployed once.
+function redeploy {
+    local src=
+    local wanted=
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --from)
+                src=$2
+                shift 2
+                ;;
+            *)
+                wanted="$wanted $1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$src" ]]; then
+        src=${DRAT_SRC:-}
+    fi
+    if [[ -z "$src" ]]; then
+        echo "Where the built webapps are is not something this deployment"
+        echo "knows. Pass it: 'drat redeploy --from /path/to/drat', or set"
+        echo "DRAT_SRC. The path is a DRAT source tree that has been built,"
+        echo "so that webapps/*/target holds the war files."
+        exit 1
+    fi
+    if [[ ! -d "$src/webapps" ]]; then
+        echo "No webapps directory under $src -- that does not look like a"
+        echo "DRAT source tree."
+        exit 1
+    fi
+
+    local unpack=
+    if command -v unzip > /dev/null 2>&1; then
+        unpack=unzip
+    elif command -v jar > /dev/null 2>&1; then
+        unpack=jar
+    else
+        echo "Neither unzip nor jar is available to unpack a war."
+        exit 1
+    fi
+
+    local stamp
+    stamp=$(date +%Y%m%d-%H%M%S)
+    local done_any=0
+
+    local entry module dir war target backup
+    for entry in $DRAT_WEBAPPS; do
+        module=${entry%%:*}
+        dir=${entry##*:}
+
+        # Only what was asked for, when anything was.
+        if [[ -n "$wanted" ]] && [[ ! " $wanted " =~ " $dir " ]] \
+                && [[ ! " $wanted " =~ " $module " ]]; then
+            continue
+        fi
+
+        war=$(ls "$src"/webapps/"$module"/target/*.war 2>/dev/null | head -1)
+        if [[ -z "$war" ]]; then
+            if [[ -n "$wanted" ]]; then
+                echo "No built war for $module under $src/webapps/$module/target."
+                echo "Build it first, then run this again."
+            fi
+            continue
+        fi
+
+        target=$DRAT_HOME/tomcat/webapps/$dir
+        backup=$target.replaced-$stamp
+
+        if [[ -d "$target" ]]; then
+            # Kept rather than deleted: a webapp is where a deployment's local
+            # edits end up, and this cannot tell one apart from what the build
+            # produced.
+            mv "$target" "$backup" || exit 1
+            echo "Kept the old $dir at $(basename "$backup")"
+        fi
+
+        mkdir -p "$target" || exit 1
+        case "$unpack" in
+            unzip) unzip -q "$war" -d "$target" || exit 1 ;;
+            jar)   ( cd "$target" && jar xf "$war" ) || exit 1 ;;
+        esac
+        echo "Redeployed $dir from $(basename "$war")"
+        done_any=1
+    done
+
+    if [[ $done_any -eq 0 ]]; then
+        echo "Nothing was redeployed."
+        return
+    fi
+
+    echo
+    echo "Tomcat serves these from disk, so restart it to pick them up --"
+    echo "with the service urls exported, which is how the webapps resolve"
+    echo "them:"
+    echo
+    echo "  $DRAT_HOME/tomcat/bin/shutdown.sh"
+    echo "  export FILEMGR_URL=http://\$OODT_SERVICES_HOST:\$FILEMGR_PORT"
+    echo "  export WORKFLOW_URL=http://\$OODT_SERVICES_HOST:\$WORKFLOW_PORT"
+    echo "  export RESMGR_URL=http://\$OODT_SERVICES_HOST:\$RESMGR_PORT"
+    echo "  $DRAT_HOME/tomcat/bin/startup.sh"
+    echo
+    echo "Starting it without those leaves every service in the pcs webapp"
+    echo "answering 500: the webapps carry [FILEMGR_URL] and its siblings as"
+    echo "placeholders and resolve them from the environment when they load,"
+    echo "so an unset one becomes a url with no protocol and the whole"
+    echo "application fails to initialise. Do not source bin/env.sh wholesale"
+    echo "to get them -- it also sets java options a modern JVM refuses to"
+    echo "start with."
+}
+
 case $1 in
     crawl)
         shift
@@ -917,6 +1048,10 @@ case $1 in
     delstats)
         shift
 	delstats
+    ;;
+    redeploy)
+        shift
+        redeploy "$@"
     ;;
     help)
         print_help
