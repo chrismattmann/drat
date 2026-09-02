@@ -582,11 +582,49 @@ function stop_service {
 function service_alive {
     local pid=$1
     [[ -z "$pid" ]] && return 1
-    kill -0 "$pid" 2>/dev/null
+    kill -0 "$pid" 2>/dev/null || return 1
+
+    # A process that has finished but has not yet been reaped still answers
+    # to kill -0, so asking that alone reports a service as running for as
+    # long as it takes the system to clear it. ps reports such a process as
+    # exiting or defunct; either way it has let go of everything it held, and
+    # waiting for it is waiting for something that has already happened. A
+    # file manager left in that state stalled the reset that was trying to
+    # restart it, and the run gave up with nothing on 9000.
+    local state
+    state=$(ps -o stat= -p "$pid" 2>/dev/null | tr -d '[:space:]')
+    case "$state" in
+        *Z*|*E*) return 1 ;;
+    esac
+    return 0
+}
+
+# A stop that ended the process but left its pid file behind wedges the
+# matching start: the service scripts refuse to start while one exists, so a
+# reset could stop a service and then be unable to bring it back -- which is
+# how a reset ended with the workflow manager cleared, stopped, and
+# unstartable. The service's own stop only removes the file when the process
+# exits inside the stop script's wait; one that takes longer still exits, and
+# still leaves the file. Only a file whose process is demonstrably gone is
+# removed here: a live one is exactly the case the check is there to catch.
+function clear_stale_pid_file {
+    local script=$1
+    local rundir="$(dirname "$script")/../run"
+    [[ -d "$rundir" ]] || return 0
+    local f pid
+    for f in "$rundir"/*.pid; do
+        [[ -e "$f" ]] || continue
+        pid=$(cat "$f" 2>/dev/null || true)
+        if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
+            rm -f "$f"
+            echo "Cleared a pid file whose process had already gone: $f"
+        fi
+    done
 }
 
 function start_service {
     local label=$1 script=$2 port=$3
+    clear_stale_pid_file "$script"
     "$script" start >> $DRAT_HOME/logs/drat.log 2>&1 || true
     local waited=0
     while [[ ! -n $(check_port "$port") ]] && [[ $waited -lt 30 ]]; do
