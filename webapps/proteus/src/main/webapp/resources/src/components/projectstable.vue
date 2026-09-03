@@ -73,69 +73,30 @@ the License.
           </v-toolbar>
           <v-row row justify-space-between>
             <v-col cols="10" offset-xs1>
-              <v-card  >
-                <v-card id="projectdetails" color="grey lighten-3">
-                     <v-row  align-center justify-space-between row>
-                      <v-col cols="6" >
-                        <p class="text-sm-left">Project Name</p>
-                        
-                      </v-col>
-                      <v-col cols="6">
-                        <v-text-field variant="solo"
-                          uneditable
-                          :value="selectedItem.name"
-                          readonly
-                        ></v-text-field>
-                      </v-col>
-                    </v-row>
-                    
-                    <v-row  justify-space-between row>
-                      <v-col cols="6" >
-                        <p class="text-sm-left"> Project Description</p>
-                       
-                      </v-col>
-                      <v-col cols="6">
-                        <v-text-field
-                          name="input-7-1"
-                          solo
-                          textarea
-                          :value="selectedItem.description"
-                          flat
-                        ></v-text-field>
-                        
-                      </v-col>
-                    </v-row>
-                    <v-row  align-center justify-space-between row>
-                      <v-col cols="6" >
-                        <p class="text-sm-left">Project Repository</p>
-                        
-                      </v-col>
-                      <v-col cols="6">
-                        <v-text-field
-                          label="Solo"
-                         
-                          solo  
-                          uneditable
-                          :value="selectedItem.repo"
-                          readonly
-                        ></v-text-field>
-                      </v-col>
-                    </v-row>
-                    <v-row  align-center justify-space-between row>
-                      <v-col cols="6" >
-                        <p class="text-sm-left">Project Location</p>
-                      </v-col>
-                      <v-col cols="6">
-                        <v-text-field
-                          label="Solo"
-                         
-                          solo
-                          uneditable
-                          :value="selectedItem.loc_url"
-                          readonly
-                        ></v-text-field>
-                      </v-col>
-                    </v-row>
+              <v-card variant="flat">
+                <!--
+                  A view, so it reads as one. These were four v-text-fields
+                  bound with :value, which is not a Vuetify 3 prop: the value
+                  never reached the field, and the boxes were editable
+                  wherever "readonly" had been left off -- the description was
+                  one, so a project's description could be typed over with no
+                  way to save it and nothing saying so. A definition list
+                  cannot be typed into at all.
+                -->
+                <v-card id="projectdetails" variant="tonal">
+                  <dl class="project-details">
+                    <dt>Project Name</dt>
+                    <dd>{{ selectedItem.name || '\u2014' }}</dd>
+
+                    <dt>Project Description</dt>
+                    <dd>{{ selectedItem.description || '\u2014' }}</dd>
+
+                    <dt>Project Repository</dt>
+                    <dd class="path">{{ selectedItem.repo || '\u2014' }}</dd>
+
+                    <dt>Project Location</dt>
+                    <dd class="path">{{ selectedItem.loc_url || '\u2014' }}</dd>
+                  </dl>
                 </v-card>
               </v-card>
             </v-col>
@@ -144,60 +105,71 @@ the License.
           </v-row>
           <v-row row >
             <v-col cols="10"  offset-xs1>
-              <v-card color="grey lighten-3" id="licenselist">
-               
-                 <br/>
-                <v-chip close v-model="license.standard">
-                  <v-avatar class="teal">{{license.docs.license_Standards}}</v-avatar>
-                  Standards
-                </v-chip>
-                <v-chip close v-model="license.unknown">
-                  <v-avatar class="teal">{{license.docs.license_Unknown}}</v-avatar>
-                  Unknown
-                </v-chip>
-                <v-chip close v-model="license.apache">
-                  <v-avatar class="teal">{{license.docs.license_Apache}}</v-avatar>
-                  Apache
-                </v-chip>
-                 <v-chip close v-model="license.binaries">
-                  <v-avatar class="teal">{{license.docs.license_Binaries}}</v-avatar>
-                  Binaries
-                </v-chip>
-                 <v-chip close v-model="license.generated">
-                  <v-avatar class="teal">{{license.docs.license_Generated}}</v-avatar>
-                  Generated
-                </v-chip>
-                <v-chip close v-model="license.notes">
-                  <v-avatar class="teal">{{license.docs.license_Notes}}</v-avatar>
-                  Notes
-                </v-chip>
-                 <v-chip close v-model="license.archives">
-                  <v-avatar class="teal">{{license.docs.license_Archives}}</v-avatar>
-                  Archives
-                </v-chip>
-                <br/>
-                <v-btn float color="primary"
-                    @click="license.unknown =true,license.standard=true,license.apache=true
-                    ,license.binaries=true,license.generated=true,license.notes=true,license.archives=true"
-                  >Reset</v-btn>
-               
+              <v-card id="licenselist" variant="tonal">
+                <!--
+                  These filter the table below. They were bound with v-model,
+                  which on a Vuetify 3 v-chip controls whether the chip is
+                  shown rather than whether it is selected -- so clicking one
+                  did nothing to the files, and Reset had nothing to undo.
+                  A chip now says whether it is on, and toggles on click.
+                -->
+                <div class="licence-filters">
+                  <v-chip
+                    v-for="kind in licenceKinds"
+                    :key="kind.flag"
+                    :color="license[kind.flag] ? 'primary' : undefined"
+                    :variant="license[kind.flag] ? 'flat' : 'outlined'"
+                    filter
+                    :model-value="license[kind.flag]"
+                    class="licence-chip"
+                    @click="toggleLicence(kind.flag)"
+                  >
+                    {{ kind.label }}
+                    <span class="licence-count">
+                      {{ license.docs[kind.field] || 0 }}
+                    </span>
+                  </v-chip>
+                </div>
+
+                <div class="licence-actions">
+                  <span class="licence-showing">
+                    Showing {{ filteredFiles.length }} of
+                    {{ (license.files || []).length }} files
+                  </span>
+                  <v-btn size="small" color="primary" @click="resetLicenceFilters">
+                    Reset
+                  </v-btn>
+                </div>
               </v-card>
             </v-col>
           </v-row>
           <v-card id="licensefiletable">
             <v-row>
               <v-col cols="10" offset-xs1>
+                <!--
+                  Filters as it is typed, so the icon is a label for the box
+                  rather than a button. It sat on the right, where it read as
+                  something to press, and pressing it did nothing.
+                -->
                 <v-text-field
                   v-model="search"
-                  append-inner-icon="mdi-magnify"
+                  prepend-inner-icon="mdi-magnify"
                   label="Search"
-                  
+                  clearable
                   hide-details>
                 </v-text-field>
                
+                <!--
+                  Paged, and told how tall it may be. Given every audited file
+                  at once it ran the length of the page and on under the fixed
+                  footer, where the last rows could not be reached.
+                -->
                 <v-data-table
                   :headers="license.headers"
                   :items="filteredFiles"
+                  :items-per-page="25"
+                  :items-per-page-options="filesPerPage"
+                  class="licence-table"
                 >
                   <template #item="{ item, index }">
                     <tr>
@@ -263,6 +235,23 @@ import store from './../store/store';
         },
         dialog:false,
         selectedItem:'',
+        /*
+         * One row per licence RAT reports, so the chips are generated rather
+         * than seven near-identical copies that could drift apart.
+         */
+        filesPerPage:[
+          {title:'25',value:25},{title:'50',value:50},
+          {title:'100',value:100},{title:'All',value:-1}
+        ],
+        licenceKinds:[
+          { flag:'standard',  label:'Standards', field:'license_Standards' },
+          { flag:'unknown',   label:'Unknown',   field:'license_Unknown' },
+          { flag:'apache',    label:'Apache',    field:'license_Apache' },
+          { flag:'binaries',  label:'Binaries',  field:'license_Binaries' },
+          { flag:'generated', label:'Generated', field:'license_Generated' },
+          { flag:'notes',     label:'Notes',     field:'license_Notes' },
+          { flag:'archives',  label:'Archives',  field:'license_Archives' }
+        ],
           headers: [
         {
           title: '#',
@@ -299,6 +288,14 @@ import store from './../store/store';
           return value != null
               && value.toString().toLowerCase().includes(search);
         });
+      },
+      toggleLicence(flag){
+        this.license[flag] = !this.license[flag];
+      },
+      resetLicenceFilters(){
+        for(const kind of this.licenceKinds){
+          this.license[kind.flag] = true;
+        }
       },
       moreClicked :function(item){
         this.$log.info("as");
@@ -398,57 +395,42 @@ import store from './../store/store';
       },
       sortedfiles:{
 
+        /*
+         * One chip, one licence. Apache files used to be shown when either
+         * Apache or Standards was on, and Unknown ones likewise, so Standards
+         * acted as a master switch that put everything back on screen and no
+         * single chip could be used to narrow anything down.
+         *
+         * Anything RAT reports under a name with no chip of its own still
+         * follows Standards, which is where it was already counted.
+         */
         get:function(){
-            var listToReturn = [];
-        
-            if(this.license.files){
-              this.license.files.forEach(file => {
-                
-                switch(file.license){
-                  case "Apache":
-                    if(this.license.apache || this.license.standard) listToReturn.push(file);
-                    break;
+          const named = {
+            Apache: 'apache',
+            Unknown: 'unknown',
+            Standards: 'standard',
+            Binaries: 'binaries',
+            Generated: 'generated',
+            Notes: 'notes',
+            Archives: 'archives'
+          };
 
-                  case "Unknown":
-                    if(this.license.unknown || this.license.standard) listToReturn.push(file);
-                    break;
+          if(!this.license.files){
+            return [];
+          }
 
-                  case "Standards":
-                      if(this.license.standard) listToReturn.push(file);
-                      break;
-                  case "Binaries":
-                      if(this.license.binaries) listToReturn.push(file);
-                      break;
-
-                  case "Generated":
-                      if(this.license.generated) listToReturn.push(file);
-                      break; 
-                  case "Notes":
-                      if(this.license.notes) listToReturn.push(file);
-                      break;   
-                  case "Archives":
-                      if(this.license.archives) listToReturn.push(file);
-                      break;
-                  default:
-                      if(this.license.standard) listToReturn.push(file);
-                      break;
-                }
-              });
-
-            }
-            
-            return listToReturn;
+          return this.license.files.filter(file => {
+            const flag = named[file.license] || 'standard';
+            return !!this.license[flag];
+          });
         },
 
         set:function(docs){
           this.license.files = docs;
         }
-        
+
       }
     },
-    filters:{
-      
-    }
 }
 </script>
 
@@ -458,45 +440,128 @@ import store from './../store/store';
     padding-bottom: 10px;
   }
 
-  .row{
-    margin:2%
+  /*
+   * Readable rows. Every cell sat on the same flat grey as the card behind
+   * it, and the values were grey too, so a project's name and its
+   * description ran together as one band of grey with no edge between them.
+   */
+  #ttx table > tbody > tr > td,
+  .licence-table table > tbody > tr > td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    color: #22303c;
   }
 
-  #projectdetails .row{
-    margin:1%;
+  #ttx table > tbody > tr:nth-child(even),
+  .licence-table table > tbody > tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.025);
   }
 
-  tr:nth-child(even){background-color :#f2f2f2}
-  tr{background-color :#ddd}
-  th{background-color: #2196F3}
-
-  #projectdetails{
-    padding: 2%;
-    padding-left:10%;
-    padding-right:10%;
-  }  
-
-  #licenselist{
-    padding: 2%;
-    margin-top: 2%;
+  #ttx table > tbody > tr:hover,
+  .licence-table table > tbody > tr:hover {
+    background-color: rgba(25, 118, 210, 0.07);
   }
 
-  #headercell{
-    max-width: 400px;
-    overflow: hidden;
-    white-space: nowrap;
+  #ttx table > thead > tr > th,
+  .licence-table table > thead > tr > th {
+    background-color: #eceff1;
+    color: #22303c;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.12);
   }
 
-  #tablecard{
-    margin-top: 20px;
-    padding : 10px;
+  /*
+   * The header column holds a whole licence header, which is a paragraph.
+   * Unwrapped it pushed the table wider than the page and ran off the right
+   * margin, taking the columns before it with it.
+   */
+  #headercell {
+    max-width: 380px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.35;
+    padding-top: 6px;
+    padding-bottom: 6px;
   }
 
-  #licensefiletable{
-    margin-bottom: 80px;
-    z-index: 950;
+  .licence-table {
+    max-width: 100%;
   }
-  #projectsearch{
-    
+
+  /* Room for the fixed footer, so the last rows are reachable. */
+  #licensefiletable {
+    margin-bottom: 96px;
+    overflow-x: auto;
+  }
+
+  /* A view of a project, not a form. */
+  .project-details {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) 1fr;
+    gap: 10px 20px;
+    margin: 0;
+    padding: 16px 20px;
+    text-align: left;
+  }
+
+  .project-details dt {
+    font-weight: 600;
+    color: #37474f;
+  }
+
+  .project-details dd {
+    margin: 0;
+    color: #22303c;
+    overflow-wrap: anywhere;
+  }
+
+  .project-details dd.path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+  }
+
+  .licence-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 16px 6px 16px;
+  }
+
+  .licence-chip {
+    font-weight: 500;
+  }
+
+  /*
+   * The count, set apart from the name. Both used to sit in the chip as bare
+   * neighbouring text, so "Standards" and its number ran into each other and
+   * into the next chip along.
+   */
+  .licence-count {
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.16);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .licence-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 16px 14px 16px;
+  }
+
+  .licence-showing {
+    font-size: 12.5px;
+    opacity: 0.75;
+  }
+
+  #projectdetails {
+    margin-bottom: 12px;
+  }
+
+  #licenselist {
+    margin-bottom: 12px;
   }
 </style>
