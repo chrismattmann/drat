@@ -12,6 +12,28 @@ if [ -n "$DRAT_HOME" ]; then
     cd "$DRAT_HOME/bin"
   fi
 
+  # The deployment's own settings, which is where its ports and service urls
+  # are already written down. Without them the webapps fall back to defaults
+  # that belong to whatever else is on this machine: the health panel read
+  # another deployment's workflow manager on 8080 and reported its jobs as
+  # DRAT's, and the charts asked a Solr on 8983 that has no drat core. The
+  # webapps resolve [FILEMGR_URL] and its siblings from the environment as
+  # they load, so a Tomcat started without these serves 500s from every
+  # service in the pcs webapp.
+  if [ -r "$DRAT_HOME/bin/setenv.sh" ]; then
+    . "$DRAT_HOME/bin/setenv.sh"
+  fi
+
+  # Named for what the webapps look for. These are this deployment's own
+  # Tomcat and Solr, not a default that happens to be free.
+  if [ -z "$DRAT_BASE_URL" ] && [ -n "$TOMCAT_PORT" ]; then
+    DRAT_BASE_URL="http://${OODT_HOST:-localhost}:$TOMCAT_PORT"
+  fi
+  if [ -z "$DRAT_SOLR_BASE_URL" ] && [ -n "$SOLR_PORT" ]; then
+    DRAT_SOLR_BASE_URL="http://${OODT_HOST:-localhost}:$SOLR_PORT"
+  fi
+  export DRAT_BASE_URL DRAT_SOLR_BASE_URL
+
   case " $CATALINA_OPTS " in
     *" -Dsolr.solr.home="*) ;;
     *) CATALINA_OPTS="$CATALINA_OPTS -Dsolr.solr.home=$DRAT_HOME/solr" ;;
