@@ -25,4 +25,9 @@ public class RecentProductService extends BaseProductService {
   public List<Item> getAllRecentProducts() {
     return super.getRecentProductsByChannel("ALL");
   }
+
+  /** The most recent products of one type. */
+  public List<Item> getRecentProductsByType(String typeName) {
+    return super.getRecentProductsByChannelAndTypeId("ALL", typeName);
+  }
 }

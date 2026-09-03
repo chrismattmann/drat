@@ -25,6 +25,13 @@ public class DratRequestWrapper {
     public String loc_url;
     public String description;
     public String type="project";
+
+    /**
+     * Path components not to crawl. Absent means the defaults, which are what
+     * the command line has always excluded; an empty list means exclude
+     * nothing, for a caller that really wants everything.
+     */
+    public java.util.List<String> excludes;
     
     
     

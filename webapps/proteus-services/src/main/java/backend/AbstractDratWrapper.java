@@ -43,4 +43,11 @@ public interface AbstractDratWrapper {
   public String getIndexablePath();
   
   void setData(DratRequestWrapper body);
+
+  /**
+   * The path components a run should not crawl. Null means the defaults.
+   */
+  void setExcludes(java.util.List<String> names);
+
+  java.util.List<String> getExcludes();
 }

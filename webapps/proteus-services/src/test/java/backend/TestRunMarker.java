@@ -80,4 +80,69 @@ public class TestRunMarker extends TestCase {
     RunMarker.write("audit", "cli", null);
     assertNull(RunMarker.read("repo"));
   }
+
+  /**
+   * A marker that cannot be read still means a run is happening.
+   *
+   * <p>
+   * These were one answer for a long time: every field was read on its own and
+   * a null meant "nothing is running". A marker caught between versions of
+   * itself parses as nothing, so a live run reported as finished -- and a
+   * watching UI, told once a run had ended, drew the bar to 100, said
+   * Completed, and closed the watch while the crawl carried on behind it.
+   * </p>
+   */
+  public void testAnUnreadableMarkerStillMeansARunIsHappening() throws Exception {
+    File marker = new File(backend.FileConstants.CURRENT_RUN_FILE);
+    marker.getParentFile().mkdirs();
+    java.nio.file.Files.write(marker.toPath(),
+        "{\"phase\":\"aud".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+    assertTrue("a marker that is there is a run that is happening",
+        RunMarker.isRecorded());
+    assertNull("and its contents are simply not available",
+        RunMarker.read("phase"));
+    assertNull(RunMarker.readAll());
+  }
+
+  /** No marker is the one thing that does mean nothing is running. */
+  public void testNoMarkerIsNotRecorded() {
+    assertFalse(RunMarker.isRecorded());
+    assertNull(RunMarker.readAll());
+  }
+
+  /** Written, and then read back whole rather than a field at a time. */
+  public void testTheWholeMarkerReadsBackAtOnce() {
+    RunMarker.write("audit", "cli", "/repo/tika");
+    assertTrue(RunMarker.isRecorded());
+    com.google.gson.JsonObject all = RunMarker.readAll();
+    assertNotNull(all);
+    assertEquals("audit", all.get("phase").getAsString());
+    assertEquals("cli", all.get("startedBy").getAsString());
+  }
+
+  /** Nothing excluded is an empty list, never a null to trip over. */
+  public void testNoExcludesIsAnEmptyList() {
+    RunMarker.write("audit", "cli", "/repo/tika");
+    assertTrue(RunMarker.excludes().isEmpty());
+  }
+
+  /**
+   * The names a run was told to skip, so a progress total can leave them out.
+   * A bar counting toward every file on disk never fills when the run was
+   * told to skip some, and a finished crawl reads as a stalled one.
+   */
+  public void testTheExcludedNamesComeBack() throws Exception {
+    File marker = new File(backend.FileConstants.CURRENT_RUN_FILE);
+    marker.getParentFile().mkdirs();
+    java.nio.file.Files.write(marker.toPath(),
+        ("{\"phase\":\"audit\",\"startedBy\":\"cli\","
+            + "\"excludes\":[\"target\",\".git\"]}")
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+    java.util.List<String> excluded = RunMarker.excludes();
+    assertEquals(2, excluded.size());
+    assertTrue(excluded.contains("target"));
+    assertTrue(excluded.contains(".git"));
+  }
 }

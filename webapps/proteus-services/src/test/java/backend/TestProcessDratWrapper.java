@@ -180,4 +180,50 @@ public class TestProcessDratWrapper extends TestCase {
   
   
 
+
+  /**
+   * A run from the UI skips what a run from the command line skips.
+   *
+   * <p>
+   * The crawl set DRAT_EXCLUDE to the empty string, so a UI run audited a
+   * repository's .git objects and its build output along with its source. On
+   * Mnemosyne that is 15,818 files and 5.1GB rather than 2,400 and 0.1GB, and
+   * the licences RAT reports for git blobs and compiled artefacts are noise
+   * in the summary.
+   * </p>
+   */
+  public void testARunExcludesBuildOutputAndGitByDefault() {
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    wrapper.setExcludes(null);
+
+    assertTrue(wrapper.getExcludes().contains("target"));
+    assertTrue(wrapper.getExcludes().contains(".git"));
+
+    String regex = wrapper.excludeRegex();
+    assertTrue("a path under target should be excluded",
+        "/repo/module/target/classes/A.class".matches(regex));
+    assertTrue("a path under .git should be excluded",
+        "/repo/.git/objects/ab/cdef".matches(regex));
+    assertFalse("source should not be excluded",
+        "/repo/src/main/java/A.java".matches(regex));
+    assertFalse("a name merely containing the word should not be excluded",
+        "/repo/src/targeting/A.java".matches(regex));
+  }
+
+  /** A caller can name its own, and can ask for everything. */
+  public void testExcludesCanBeNamedOrEmptied() {
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+
+    wrapper.setExcludes(java.util.Arrays.asList("node_modules"));
+    String regex = wrapper.excludeRegex();
+    assertTrue("/repo/node_modules/x/y.js".matches(regex));
+    assertFalse("/repo/target/classes/A.class".matches(regex));
+
+    wrapper.setExcludes(new java.util.ArrayList<String>());
+    assertEquals("nothing excluded is an empty pattern", "",
+        wrapper.excludeRegex());
+
+    wrapper.setExcludes(null);
+  }
+
 }
