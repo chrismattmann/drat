@@ -161,7 +161,7 @@ the License.
                         legend.append("rect")
                             .attr("width", 18)
                             .attr("height", 18)
-                            .style("fill", function(d, i) {
+                            .style("fill", function(d) {
                                 return color(d.data.key);
                               });
 

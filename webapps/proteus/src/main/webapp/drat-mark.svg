@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DRAT">
+  <title>DRAT</title>
+  <!--
+    The nav mark. Sized to read at an avatar's worth of pixels, so it is a
+    solid badge with one glyph and one bar: anything finer turns to mud at
+    that size. The bar is the same scan line the wordmark carries.
+  -->
+  <rect width="64" height="64" rx="14" fill="#22303F"/>
+  <path d="M22 18 H32 C42.5 18 49 24.8 49 32 C49 39.2 42.5 46 32 46 H22 Z"
+        fill="none" stroke="#F2F5F7" stroke-width="7"
+        stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M14 32 H24" stroke="#E9B44C" stroke-width="7" stroke-linecap="round"/>
+</svg>

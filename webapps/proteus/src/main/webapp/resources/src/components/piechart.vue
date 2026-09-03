@@ -49,7 +49,8 @@ import store from './../store/store';
         // blank while thousands of products sat in Solr.
         this.loadData();
         this.timerClearVar = setInterval(function () {
-          if(this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
+          // "audit" is the whole pipeline, indexing included; see statisticscomp.
+          if(this.currentState=="AUDIT" || this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
     },
     beforeDestroy(){
@@ -61,6 +62,16 @@ import store from './../store/store';
       }
     },
     methods: {
+      /*
+       * The mime breakdown on the run view is drawn from the index, and the
+       * index is filled during the run. Before it has caught up there is
+       * nothing of this run's in it, so what would be shown is a partial
+       * picture that reads as a finished one. Only while a run is happening:
+       * with no run under way the index is simply what the catalog holds.
+       */
+      indexNotReadyYet(){
+        return !store.state.indexDone;
+      },
       translateLegend(d,i){
           var x = 0;
           var y = 0;
@@ -125,6 +136,9 @@ import store from './../store/store';
         
       },
       loadData(){
+        if(this.indexNotReadyYet()){
+          return;
+        }
         axios.get(this.origin+"/proteus-services/solr/drat/select?q=producttype:GenericFile&rows=0&facet=true&facet.field=mimetype&wt=json")
             .then(response=>{
               this.data=this.buildMimeBreakdown(response.data, 5);

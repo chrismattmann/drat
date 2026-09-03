@@ -30,7 +30,7 @@ the License.
         <v-list class="pa-0">
           <v-list-tile avatar>
             <v-list-tile-avatar>
-              <img width=10px height=10px src="leaf-logo.png">
+              <img width="32px" height="32px" src="drat-mark.svg" alt="DRAT">
             </v-list-tile-avatar>
   
             <v-list-tile-content>
@@ -68,7 +68,31 @@ the License.
       </v-list>
     </v-navigation-drawer>
     <div id="contentpane" >
-       
+
+      <!--
+        Somewhere to say what is happening and one control to act on it. The
+        watch view could only be entered by starting a run from this browser
+        and left by answering a dialog, so a run already under way was
+        unreachable and stepping away from one meant confirming you meant to.
+        Neither starts or stops anything: the run is the run either way.
+      -->
+      <v-card id="runbanner" v-if="runningNow || progress">
+        <span id="runbannertext">
+          <span v-if="runningNow">
+            <strong>DRAT is running</strong>
+            <span v-if="phaseLabel"> &mdash; {{ phaseLabel }}</span>
+            <span v-if="runStartedByCli"> (started from the command line)</span>
+          </span>
+          <span v-else>No run in progress</span>
+        </span>
+        <v-btn small color="primary" v-if="!progress" @click="watchRun">
+          Watch this run
+        </v-btn>
+        <v-btn small v-else @click="backToSummary">
+          Back to summary
+        </v-btn>
+      </v-card>
+
       <v-layout row wrap v-if="progress">
         <v-flex xs3>
           <filelistcomp/>
@@ -80,8 +104,15 @@ the License.
         </v-flex>
         <v-flex xs6>
           <section >
-          <barchartcomp />
-          <piechart/>
+          <!--
+            Drawn only once this run has something of its own to draw. Not
+            refreshing them was not enough: a chart already on screen stays on
+            screen, so the previous run's licences and mime types sat there
+            through the clear and the crawl, on a page describing this run.
+            Taking the components out is what removes them.
+          -->
+          <barchartcomp v-if="licencesToShow" />
+          <piechart v-if="mimeTypesToShow" />
           </section>
         </v-flex>
        
@@ -149,7 +180,7 @@ the License.
     
     <v-spacer/>
     <v-card id="footercard">
-      <img height="80px"  src="logo.png">
+      <img id="footerlogo" height="64px" src="drat-logo.svg" alt="DRAT">
     </v-card>
        
     </v-app>
@@ -169,6 +200,7 @@ import bublechartcomp from './components/bublechartcomp.vue'
 import licensepiecomp from './components/licensepiecomp.vue'
 import topmimepiecomp from './components/topmimepiecomp.vue'
 import auditsummarycomp from './components/auditsummarycomp.vue'
+import axios from 'axios'
 import store from './store/store'
 export default {
   name: 'app',
@@ -200,7 +232,8 @@ export default {
         
       ],
       mini: true,
-      right: null
+      right: null,
+      runWatchTimer: null
     }
   },
   methods:{
@@ -208,63 +241,64 @@ export default {
       this.$log.info(location.origin)
       store.commit("setOrigin",location.origin);
     },
+    watchRun(){
+      store.commit("setprogress",true);
+      store.commit("setView","summary");
+    },
+    backToSummary(){
+      // Leaving the watch does not touch the run, so there is nothing to
+      // confirm and nothing to lose by going back.
+      store.commit("setprogress",false);
+    },
+    /*
+     * A run is a run whoever started it. This asks the back end what is
+     * happening rather than remembering what this browser asked for, so a run
+     * started from the command line -- or from another browser, or before this
+     * page was opened -- opens the same watch view as one started here.
+     */
+    watchForARun(){
+      axios.get(location.origin+"/proteus-services/drat/run")
+      .then(response=>{
+        const run = response.data && typeof response.data === 'object'
+            ? response.data : null;
+        if(run === null || typeof run.running !== 'boolean'){
+          // Not an answer. Leaving the last one in place is right: an
+          // unreadable response is not news about the run.
+          return;
+        }
+        store.commit("setRun",run);
+
+        /*
+         * Noticing a run is not the same as opening it. This used to set the
+         * watch view going by itself, which meant a reload landed on the
+         * watch rather than where the reader had been -- and leaving it only
+         * lasted until the next poll brought them back. The banner says a run
+         * is happening; going to look at it is a click.
+         *
+         * The repository is worth taking either way: the charts are drawn
+         * about a repository, and this is the one being audited.
+         */
+        if(run.running && run.repo && store.state.currentRepo !== run.repo){
+          store.commit("setCurrentRepo",run.repo);
+        }
+      })
+      .catch(()=>{
+        // The back end not answering is not a reason to tear the view down;
+        // the next poll will say either way.
+      });
+    },
     selectmenu(menu){
-      let options = {
-                html: false, // set to true if your message contains HTML tags. eg: "Delete <b>Foo</b> ?"
-                loader: false, // set to true if you want the dailog to show a loader after click on "proceed"
-                reverse: false, // switch the button positions (left to right, and vise versa)
-                okText: 'Yes',
-                cancelText: 'No',
-                animation: 'zoom', // Available: "zoom", "bounce", "fade"
-                type: 'basic', // coming soon: 'soft', 'hard'
-                verification: 'continue', // for hard confirm, user will be prompted to type this to enable the proceed button
-                verificationHelp: 'Type "[+:verification]" below to confirm', // Verification help text. [+:verification] will be matched with 'options.verification' (i.e 'Type "continue" below to confirm')
-                clicksCount: 3, // for soft confirm, user will be asked to click on "proceed" btn 3 times before actually proceeding
-                backdropClose: false // set to true to close the dialog when clicking outside of the dialog window, i.e. click landing on the mask 
-              };
+      // No dialog either way: moving between the summary and the watch view
+      // does not start or stop anything, and the banner offers the way back.
       if(menu.title=="Summary"){
-        if(this.progress){
-          
-              this.$dialog.confirm({title:"Confirm",body:'Currently on progress, do you want to close ?'},options)
-              .then(function () {
-                  store.commit("setprogress",false);
-              })
-              .catch(function () {
-                  
-              });
-          }
+        store.commit("setprogress",false);
         store.commit("setView","summary");
       }else if(menu.title=="Audit"){
-       if(this.progress){
-          
-          this.$dialog.confirm({title:"Confirm",body:'Currently on progress, do you want to close ?'},options)
-          .then(function () {
-              store.commit("setprogress",false);
-          })
-          .catch(function () {
-              
-          });
-        }
+        store.commit("setprogress",false);
         store.commit("setView","audit");
       }
       this.showsnackbar();
     },
-    showsnackbar(){
-      this.snackbarmessageindex = this.snackbarmessages.length-1;
-      if(this.snackbarmessageindex>-1) this.snackbar=true;
-    },
-    addsnackbarmessage(message){
-      if(this.snackbarmessages.length==10){
-        this.snackbarmessages.shift();
-      }
-       this.snackbarmessages.push(message);
-      
-    },
-    removeelement(position){
-      this.snackbarmessages.splice(position,1);
-      if(this.snackbarmessageindex!=0)this.snackbarmessageindex--;
-    }
-  
   },
   computed:{
     progress (){
@@ -273,9 +307,51 @@ export default {
     stateView(){
       return store.state.view;
     },
+    runningNow(){
+      return !!(store.state.run && store.state.run.running);
+    },
+    /* What RAT found, so not before RAT has finished an audit. */
+    licencesToShow(){
+      return store.state.ratFinished > 0;
+    },
+    /* Read from the index, so not before the index has caught up. */
+    mimeTypesToShow(){
+      return store.state.indexDone;
+    },
+    runPhase(){
+      return store.state.run ? store.state.run.phase : '';
+    },
+    phaseLabel(){
+      // Said the way it would be said out loud.
+      const labels = {
+        reset: 'clearing the previous run',
+        crawl: 'crawling',
+        index: 'indexing',
+        map: 'mapping',
+        reduce: 'reducing',
+        audit: 'auditing'
+      };
+      const phase = this.runPhase;
+      return phase ? (labels[String(phase).toLowerCase()] || phase) : '';
+    },
+    runStartedByCli(){
+      return !!(store.state.run && store.state.run.startedBy == 'cli');
+    },
   },
   mounted(){
    this.setHost();
+   this.watchForARun();
+   /*
+    * Two seconds, not five. Everything that reacts to a phase reads this --
+    * whether the crawl counters are shown, what the banner says -- and a
+    * five second gap is five seconds of a page describing the phase before
+    * the one it is in. It is one small request against this deployment's own
+    * Tomcat.
+    */
+   this.runWatchTimer = setInterval(this.watchForARun, 2000);
+  },
+  beforeDestroy(){
+    clearInterval(this.runWatchTimer);
   }
 }
 </script>
@@ -295,6 +371,20 @@ export default {
   padding-right: 10%;
   margin-bottom: 80px;
 }
+#runbanner{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+#runbannertext{
+  flex: 1 1 auto;
+}
+
 #footercard{
   background-color: #2c3e50;
   width: 100%;
@@ -306,5 +396,11 @@ export default {
 
 #logospace{
   width: 80%;
+}
+
+#footerlogo{
+  /* Room around it: the wordmark sits on the footer's own dark ground and
+     was previously flush against the edges of the bar. */
+  margin: 12px 0 10px 0;
 }
 </style>
