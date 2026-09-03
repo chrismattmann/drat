@@ -217,21 +217,70 @@ function current_pges {
 #
 # A stopgap on purpose: when the crawl and the index become workflow tasks the
 # engine will know about the whole run and this will have nothing left to say.
+# Records which repository the run is about. The mime partitioner reads this
+# to decide which indexed files belong to the run.
+function write_current_repo {
+    local repo=$1
+    local name
+    name=$(basename "$repo")
+    mkdir -p "$DRAT_HOME/data"
+    printf '{"id":"id:%s","repo":"%s","name":"%s","loc_url":"","description":"%s from the command line","type":"project"}\n' \
+        "$repo" "$repo" "$name" "$name" > "$DRAT_HOME/data/repo.tmp"
+    mv -f "$DRAT_HOME/data/repo.tmp" "$DRAT_HOME/data/repo"
+}
+
 function mark_run {
     local phase=$1
     local repo=${2:-}
+    shift 2 2>/dev/null || shift $#
+    # Whatever is left is the exclude names, already unpicked from their
+    # --exclude flags by the caller.
     local started
     started=$(date +%s)000
+
+    local excludes=""
+    local name
+    for name in "$@"; do
+        [[ -z "$name" ]] && continue
+        [[ -n "$excludes" ]] && excludes="$excludes,"
+        excludes="$excludes\"$name\""
+    done
+
+    # Written to one side and moved into place, because a reader polling this
+    # file will otherwise catch it empty: a plain redirect truncates first and
+    # fills afterwards, and anything reading in between sees no run at all. A
+    # rename is atomic, so a reader sees either the previous marker or this
+    # one, never half of one.
     {
         printf '{"phase":"%s","startedBy":"cli","startedAt":"%s"' \
             "$phase" "$started"
         [[ -n "$repo" ]] && printf ',"repo":"%s"' "$repo"
+        [[ -n "$excludes" ]] && printf ',"excludes":[%s]' "$excludes"
         printf '}\n'
-    } > "$DRAT_HOME/data/run"
+    } > "$DRAT_HOME/data/run.tmp"
+    mv -f "$DRAT_HOME/data/run.tmp" "$DRAT_HOME/data/run"
 }
 
 function unmark_run {
-    rm -f "$DRAT_HOME/data/run"
+    local outcome=${1:-}
+    # Kept as the last run rather than thrown away. What a run was told to
+    # skip is the only thing that says how many files it was ever going to
+    # crawl, so without it a finished audit of 3,503 files reads as 3,503 of
+    # the repository's 10,420 -- a third done, for ever. The run is over
+    # either way: what is running is decided by data/run, which this removes.
+    if [[ -f "$DRAT_HOME/data/run" ]]; then
+        # How it ended, so a page that watched it can say so rather than
+        # calling everything that stops "completed".
+        if [[ -n "$outcome" ]]; then
+            sed -e "s/}$/,\"outcome\":\"$outcome\"}/" \
+                "$DRAT_HOME/data/run" > "$DRAT_HOME/data/last-run.tmp" \
+                && mv -f "$DRAT_HOME/data/last-run.tmp" \
+                    "$DRAT_HOME/data/last-run" \
+                && rm -f "$DRAT_HOME/data/run"
+        else
+            mv -f "$DRAT_HOME/data/run" "$DRAT_HOME/data/last-run"
+        fi
+    fi
 }
 
 # Start the audit: one workflow instance for partition, map and aggregate.
@@ -420,8 +469,23 @@ function check_services_running {
 
 function solr_delete_all {
     local core=$1
-    curl -sf -H 'Content-Type: text/xml' "http://${OODT_HOST}:${SOLR_PORT}/solr/${core}/update?commit=true" \
-        --data-binary '<delete><query>*:*</query></delete>' > /dev/null
+    local code
+    code=$(curl -s -o /dev/null -w '%{http_code}' \
+        -H 'Content-Type: text/xml' \
+        "http://${OODT_HOST}:${SOLR_PORT}/solr/${core}/update?commit=true" \
+        --data-binary '<delete><query>*:*</query></delete>' 2>/dev/null || echo 000)
+
+    if [[ "$code" != "200" ]]; then
+        # Said out loud. This was 'curl -sf ... > /dev/null', which under the
+        # errexit this script runs with ended the whole run on a bad response
+        # and printed nothing at all: a core whose index had gone answered 500
+        # to every delete, and 'drat go' exited three lines in looking for all
+        # the world like it had simply stopped.
+        echo "Solr core '${core}' did not accept the delete (HTTP ${code})."
+        echo "Its index may be missing or the core may need reloading; check"
+        echo "${SOLR_URL:-http://${OODT_HOST}:${SOLR_PORT}}/solr/#/${core}."
+        return 1
+    fi
 }
 
 # Reset the live services before a full command-line run. This clears the
@@ -429,11 +493,15 @@ function solr_delete_all {
 function reset_running {
     check_services_running
     echo "Resetting live DRAT state"
-    # /proteus is the Vue application now; the services moved to
-    # /proteus-services when the modules were renamed. This called the old
-    # path, and -sf meant the 404 was swallowed, so reset silently did
-    # nothing and drat go carried on against stale state.
-    curl -sf -X POST "http://${OODT_HOST}:${TOMCAT_PORT}/proteus-services/drat/reset" > /dev/null
+    # Everything below does what a POST to Proteus's reset does, and does it
+    # by removing files rather than by asking the file manager to delete one
+    # product at a time over HTTP. That call was here as well, and it is the
+    # slow half of a reset by a wide margin: on a catalog of ~5,900 products
+    # it was managing 0.4 deletes a second -- about four hours -- while the
+    # step right after it deletes the whole index in a moment. Both ran, so a
+    # reset paid the four hours to reach the same place.
+    #
+    # Proteus keeps its own reset for when nothing else is driving one.
     solr_delete_all drat
     rm -rf "$DRAT_HOME/data/archive/"*
     rm -rf "$DRAT_HOME/data/jobs/"*
@@ -556,11 +624,14 @@ function stop_service {
     fi
 
     "$script" stop >> $DRAT_HOME/logs/drat.log 2>&1 || true
-    # Sixty, not thirty: a file manager closing a large Lucene index took
-    # longer than thirty seconds to exit, which was read as "still holding
-    # it" when it was only most of the way through letting go.
+    # Three minutes, not one: a workflow manager that has been running a full
+    # audit takes well over a minute to put down its engine and its instance
+    # database, and a file manager closing a large Lucene index is no quicker.
+    # Giving up early reads as "still holding it" when it is only most of the
+    # way through letting go -- and what follows a false negative here is a
+    # reset that stops half way.
     local waited=0
-    while [[ $waited -lt 60 ]]; do
+    while [[ $waited -lt 180 ]]; do
         if [[ -z $(check_port "$port") ]] && ! service_alive "$pid"; then
             return 0
         fi
@@ -627,8 +698,11 @@ function start_service {
     local label=$1 script=$2 port=$3
     clear_stale_pid_file "$script"
     "$script" start >> $DRAT_HOME/logs/drat.log 2>&1 || true
+    # Sixty, matching the stop: a file manager opening a large Lucene catalog
+    # takes longer than thirty seconds to answer on its port, and giving up on
+    # it aborts the run that just cleared the catalog it was opening.
     local waited=0
-    while [[ ! -n $(check_port "$port") ]] && [[ $waited -lt 30 ]]; do
+    while [[ ! -n $(check_port "$port") ]] && [[ $waited -lt 60 ]]; do
         sleep 1
         waited=$((waited + 1))
     done
@@ -693,12 +767,41 @@ function reset_workflow_instances {
             # meant to start clean starts on top of every instance from the
             # last one. Nothing is in flight at reset, so the manager can be
             # put down for the few seconds this takes.
+            # Asked of the manager while it runs, when it is running: it
+            # owns the repository, so there is no lock to take and nothing to
+            # stop. Stopping it is what this used to do, and stopping it is
+            # where the sequence kept failing -- a manager that would not stop
+            # inside the timeout, a pid file left behind that blocked the
+            # restart, a reset that cleared the file manager's catalog and
+            # then gave up with no manager running.
+            if [[ -n $(check_port 9001) ]]; then
+                echo "Asking the workflow manager to clear its instances"
+                if "$DRAT_HOME"/workflow/bin/wmgr-client --url "$CLIENT_URL" \
+                        --operation --clearInstances --force \
+                        >> $DRAT_HOME/logs/drat.log 2>&1; then
+                    echo "Cleared workflow instances"
+                    return 0
+                fi
+                echo "The workflow manager could not clear its instances;"
+                echo "falling back to clearing the database directly."
+            fi
+
             local bounced=false
             if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port 9001) ]]; then
                 echo "Stopping the workflow manager to release $url"
                 if ! stop_service "workflow manager" \
                         "$DRAT_HOME/workflow/bin/wmgr" 9001; then
-                    return 0
+                    # Stopping here, rather than carrying on. This used to
+                    # return quietly and let the reset continue: the file
+                    # manager's catalog was then cleared, the run aborted for
+                    # want of a workflow manager, and the deployment was left
+                    # half reset -- catalog gone, manager down. Refusing to
+                    # start is a great deal better than that.
+                    echo "The workflow manager could not be stopped, so nothing"
+                    echo "has been cleared and no run has been started. Its"
+                    echo "shutdown may still be in progress; try again in a"
+                    echo "minute, or stop it yourself and re-run."
+                    return 1
                 fi
                 bounced=true
             fi
@@ -756,7 +859,7 @@ function go {
     # first error -- it stops claiming to be running. A run that died during
     # the crawl otherwise left the marker saying so, and Proteus went on
     # reporting a crawl that had not existed for hours.
-    trap unmark_run EXIT
+    trap 'if [[ $? -eq 0 ]]; then unmark_run finished; else unmark_run aborted; fi' EXIT
     FULL_WIPE=false
     local -a EXCLUDE_ARGS=()
     while [[ $# -gt 0 ]]; do
@@ -798,7 +901,6 @@ function go {
     if [[ "$FULL_WIPE" == "true" ]]; then
         full_wipe_running
     fi
-    reset_running
     # One instance for the whole run: crawl, index, partition, aggregate.
     # This used to crawl and index itself and then submit the rest, so the
     # first two steps happened where nothing could see them and the ordering
@@ -809,8 +911,30 @@ function go {
     # workflow is submitted, and Proteus asks before that. The crawl and
     # index phases are gone from the marker with the steps themselves: from
     # here there is one thing happening, and it is the audit.
+    # The exclude names, without their flags: what is not going to be crawled
+    # is what stops a progress bar counting toward a total it can never reach.
+    local -a EXCLUDE_NAMES=()
+    local i
+    for ((i = 0; i < ${#EXCLUDE_ARGS[@]}; i++)); do
+        [[ "${EXCLUDE_ARGS[$i]}" == "--exclude" ]] && EXCLUDE_NAMES+=("${EXCLUDE_ARGS[$((i + 1))]}")
+    done
+    # Marked before the reset rather than after it. The reset stops services,
+    # clears the catalog and starts them again, which is a minute or two of a
+    # run in which DRAT is plainly busy -- and the marker being written only
+    # once the workflow was submitted meant anything watching was told
+    # nothing was happening for all of it.
+    mark_run reset "$PRODUCT_PATH" "${EXCLUDE_NAMES[@]}"
+    reset_running
+
     echo "Auditing $PRODUCT_PATH"
-    mark_run audit "$PRODUCT_PATH"
+    # The repository this run is about, where everything else looks for it.
+    # Only Proteus wrote this, so a run from here inherited whatever repo the
+    # last run from the UI had left behind -- and the mime partitioner filters
+    # every candidate file against it, so an audit of Tika under a stale
+    # Mnemosyne record discarded all 3,503 files, created no RAT jobs at all,
+    # and reported its 45 mime types done.
+    write_current_repo "$PRODUCT_PATH"
+    mark_run audit "$PRODUCT_PATH" "${EXCLUDE_NAMES[@]}"
     local before
     before=$(instance_ids)
     if [[ ${#EXCLUDE_ARGS[@]} -gt 0 ]]; then
@@ -820,7 +944,39 @@ function go {
     fi
     echo
     wait_for_audit "$before"
-    unmark_run
+    # Named, because this is the one path that knows the run reached its end.
+    # The trap says the same thing for any other way out of here, but it only
+    # sees an exit status; this call is the difference between a run that
+    # finished and one that stopped somewhere in the middle.
+    unmark_run finished
+}
+
+# Empties a Solr core. Asks Solr to delete its documents when Solr is up, and
+# only removes the index directory when it is not.
+#
+# Removing that directory unconditionally is what this used to do, and Solr
+# holds its index open: deleting it underneath a running Solr leaves the core
+# with a closed IndexWriter, so every later update answers 500 with
+# NoSuchFileException until Solr is restarted. A reset then looked like it had
+# worked, and the next run died on the first delete it attempted.
+function solr_clear_core {
+    local core=$1
+    local dir=$2
+
+    if [[ -n $(check_port "$SOLR_PORT") ]]; then
+        if solr_delete_all "$core"; then
+            echo "Emptied Solr core '$core'"
+            return 0
+        fi
+        echo "Could not empty Solr core '$core' through Solr; leaving its"
+        echo "index alone rather than deleting it while Solr is running."
+        return 1
+    fi
+
+    if [[ -n "$dir" ]] && [[ -d "$dir" ]]; then
+        echo "rm -rf $dir"
+        rm -rf "$dir"
+    fi
 }
 
 # Reset drat to prepare for analyzing an entirely new repo. Expects no arguments.
@@ -835,8 +991,7 @@ function reset {
                 rm -rf $DRAT_HOME/data/workflow
                 echo "rm -rf $DRAT_HOME/filemgr/catalog"
                 rm -rf $DRAT_HOME/filemgr/catalog
-                echo "rm -rf $DRAT_HOME/solr/drat/data"
-                rm -rf $DRAT_HOME/solr/drat/data
+                solr_clear_core drat "$DRAT_HOME/solr/drat/data"
                 echo "rm -rf $DRAT_HOME/data/archive/*"
                 rm -rf $DRAT_HOME/data/archive/*
                 echo "rm -rf $DRAT_HOME/data/jobs/*"
@@ -869,8 +1024,7 @@ function delstats {
     read -p "Do you wish to continue? [yN] " yn
         case $yn in
             [Yy]*)
-                echo "rm -rf $DRAT_HOME/solr/statistics/data"
-                rm -rf $DRAT_HOME/solr/statistics/data
+                solr_clear_core statistics "$DRAT_HOME/solr/statistics/data"
                 echo "Please restart OODT with '\$DRAT_HOME/bin/oodt start' if you wish to run another crawl."
             ;;
             [Nn]*)
@@ -981,17 +1135,15 @@ function redeploy {
             #
             # Kept outside webapps, though. Tomcat deploys every directory it
             # finds in there, so a backup left beside the thing it replaces
-            # becomes another running web application -- started afresh on
-            # every boot, and never removed. A day of redeploying left
-            # twenty-six of them: 2.2GB of webapps, and a start that went from
-            # fourteen seconds to over forty before it would serve anything.
+            # becomes another running web application: a day of redeploys left
+            # twenty-six of them, 2.2GB, each one started afresh on every
+            # boot and adding seconds to it.
             mkdir -p "$DRAT_HOME/data/webapp-backups" || exit 1
             mv "$target" "$backup" || exit 1
             echo "Kept the old $dir at data/webapp-backups/$(basename "$backup")"
 
-            # The last few are worth having; the rest are just disk. Without
-            # this they are kept for ever, which is how the pile above
-            # happened.
+            # Only the last few are worth keeping. Without this they are kept
+            # for ever, which is how the pile above happened.
             local old
             while read -r old; do
                 [[ -n "$old" ]] && rm -rf "$old"
