@@ -17,10 +17,13 @@
 
 package backend;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
 import backend.ProcessDratWrapper;
+import backend.RunMarker;
+import backend.FileConstants;
 import static backend.ProcessDratWrapper.MAPPER_TASK_ID;
 import static backend.ProcessDratWrapper.PARTITION_AND_MAP_TASK_ID;
 import junit.framework.TestCase;
@@ -224,6 +227,100 @@ public class TestProcessDratWrapper extends TestCase {
         wrapper.excludeRegex());
 
     wrapper.setExcludes(null);
+  }
+
+  /** Writes the marker bin/drat leaves behind when a run ends. */
+  private static void writeLastRun(String repo) throws Exception {
+    File marker = new File(FileConstants.LAST_RUN_FILE);
+    marker.getParentFile().mkdirs();
+    java.io.FileWriter out = new java.io.FileWriter(marker);
+    try {
+      out.write("{\"phase\":\"audit\",\"startedBy\":\"cli\",\"repo\":\""
+          + repo + "\",\"outcome\":\"finished\"}");
+    } finally {
+      out.close();
+    }
+  }
+
+  /**
+   * The repository a run is about, when this process is not the one that
+   * started it.
+   *
+   * <p>
+   * getIndexablePath returned a field set only by a run started through
+   * Proteus, so a command line run left it empty and /drat/currentrepo
+   * answered with nothing while an audit was underway. The UI sizes the
+   * repository and draws its charts by that answer.
+   * </p>
+   */
+  public void testTheCurrentRepoIsTheRunningRunsEvenWhenStartedElsewhere() {
+    RunMarker.clear();
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    wrapper.setIndexablePath("");
+    try {
+      RunMarker.write("audit", "cli", "/repos/tika");
+
+      assertEquals("a run started from the command line has a repository too",
+          "/repos/tika", wrapper.getIndexablePath());
+    } finally {
+      RunMarker.clear();
+      wrapper.setIndexablePath("");
+    }
+  }
+
+  /**
+   * The live run wins. Both can be present at once -- a marker is written
+   * when a run starts and this process may still hold the path from the run
+   * before it -- and the one happening now is the one being described.
+   */
+  public void testARunningRunOutranksWhateverThisProcessLastHeld() {
+    RunMarker.clear();
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    try {
+      wrapper.setIndexablePath("/repos/stale");
+      RunMarker.write("audit", "cli", "/repos/live");
+
+      assertEquals("/repos/live", wrapper.getIndexablePath());
+    } finally {
+      RunMarker.clear();
+      wrapper.setIndexablePath("");
+    }
+  }
+
+  /**
+   * With nothing running, the run that finished last is what the figures on
+   * screen are still describing, so that is what this reports rather than
+   * nothing at all.
+   */
+  public void testWithNoRunTheLastOneIsStillTheSubject() throws Exception {
+    RunMarker.clear();
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    wrapper.setIndexablePath("");
+    File last = new File(FileConstants.LAST_RUN_FILE);
+    try {
+      writeLastRun("/repos/finished");
+
+      assertEquals("/repos/finished", wrapper.getIndexablePath());
+    } finally {
+      last.delete();
+      wrapper.setIndexablePath("");
+    }
+  }
+
+  /**
+   * What this process is doing still counts when nothing is written down.
+   * A run started here reports its repository before the marker exists.
+   */
+  public void testWithNoMarkerAtAllThisProcessesOwnPathIsUsed() {
+    RunMarker.clear();
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+    try {
+      wrapper.setIndexablePath("/repos/started-here");
+
+      assertEquals("/repos/started-here", wrapper.getIndexablePath());
+    } finally {
+      wrapper.setIndexablePath("");
+    }
   }
 
 }
