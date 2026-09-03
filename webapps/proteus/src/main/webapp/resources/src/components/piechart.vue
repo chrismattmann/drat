@@ -18,7 +18,7 @@ the License.
 
   <section class="piechart">
     <v-card id="piecard">
-    <v-toolbar height="50" color="primary" dark>
+    <v-toolbar height="50" color="primary">
       <v-toolbar-title>Mime Type Breakdown</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
@@ -53,7 +53,7 @@ import store from './../store/store';
           if(this.currentState=="AUDIT" || this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearVar);
     },
     data() {

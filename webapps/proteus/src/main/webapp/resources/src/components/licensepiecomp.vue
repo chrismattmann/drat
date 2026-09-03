@@ -17,8 +17,8 @@ the License.
 
   <section class="licensepiecomp">
     <v-card id="licensecard">
-      <v-toolbar dark color="primary">
-         <v-toolbar-title class="white--text">License Types</v-toolbar-title>
+      <v-toolbar color="primary">
+         <v-toolbar-title class="text-white">License Types</v-toolbar-title>
       </v-toolbar>
 
       <svg id="pielicensesvg" width="420" height="600"></svg>

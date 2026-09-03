@@ -13,11 +13,9 @@ License for the specific language governing permissions and limitations under
 the License.
 */
 
-import Vuex from 'vuex';
-import Vue from 'vue';
-Vue.use(Vuex);
+import { createStore } from 'vuex';
 
-const store = new Vuex.Store({
+const store = createStore({
     state:{
         progress:false,
         view:"summary",

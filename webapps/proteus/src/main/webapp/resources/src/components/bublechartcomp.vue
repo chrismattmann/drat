@@ -16,8 +16,8 @@ the License.
 
   <section class="bublechartcomp">
     <v-card id="bublecard">
-      <v-toolbar dark color="primary">
-        <v-toolbar-title class="white--text">All MIME Types</v-toolbar-title>
+      <v-toolbar color="primary">
+        <v-toolbar-title class="text-white">All MIME Types</v-toolbar-title>
       </v-toolbar>
 
       <svg id="bublesvg" width="400" height="300"></svg>
@@ -49,7 +49,7 @@ the License.
         timerClearVar:'',
       }
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearVar)
     },
     methods: {

@@ -16,7 +16,7 @@ the License.
 
   <section class="barchartcomp">
     <v-card id = "barchart">
-    <v-toolbar height="50" color="primary" dark>
+    <v-toolbar height="50" color="primary">
       <v-toolbar-title>License Breakdown</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
@@ -46,7 +46,7 @@ import store from './../store/store'
         }.bind(this), 1000);
         
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearvar);
     },
     data() {

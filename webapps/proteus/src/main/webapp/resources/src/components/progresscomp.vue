@@ -24,7 +24,7 @@ the License.
         :rotate="-90"
         :size="100"
         :width="15"
-        :value="value"
+        :model-value="value"
         :indeterminate="indeterminate"
         color="primary"
       >
@@ -55,7 +55,7 @@ the License.
           this.loaddata();
         }.bind(this), 5000);
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearVar);
     },
     data() {

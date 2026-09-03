@@ -25,48 +25,50 @@ the License.
       themselves have to go.
     -->
     <v-card id="crawlingprogress" v-if="!clearingPreviousRun">
-       <v-progress-linear height="10" v-model="crawlingprogress"></v-progress-linear>
+       <v-progress-linear height="10" :model-value="crawlingprogress"></v-progress-linear>
       <strong>{{stat.crawledfiles}}</strong> of <strong>{{stat.numOfFiles}}</strong> files Crawled
      
     </v-card>
     <v-card id="indexingprogress" v-if="!clearingPreviousRun">
-       <v-progress-linear height="10" v-model="indexingprogress"></v-progress-linear>
+       <v-progress-linear height="10" :model-value="indexingprogress"></v-progress-linear>
       <strong>{{stat.indexedfiles}}</strong> of <strong>{{stat.numOfFiles}}</strong> files Indexed
      
     </v-card>
   
-    <v-toolbar height="50" color="primary" dark>
+    <v-toolbar height="50" color="primary">
       <v-toolbar-title>Statistics</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
     <hr>
-    <v-expansion-panel
-        v-model="panel"
-        expand
-      >
-        <v-expansion-panel-content id="header"
-        >
-          <div  slot="header"><b>Repository</b></div>
+    <!--
+      Vuetify 3 replaces the header slot with a title component, and the
+      panels are addressed by index through a single v-model rather than by
+      an array of booleans against "expand". Same two panels, same one open.
+    -->
+    <v-expansion-panels v-model="panel" multiple>
+        <v-expansion-panel id="header">
+          <v-expansion-panel-title><b>Repository</b></v-expansion-panel-title>
+          <v-expansion-panel-text>
           <v-card>
             <v-card-text>
             <p style="text-align:left;">In-Memory Size  : <span style="float:right;">    <strong> {{stat.size}}</strong> <br></span></p>
             <p style="text-align:left;">Number of files :<span style="float:right;">  <strong>{{stat.numOfFiles}} </strong><br></span></p>
             </v-card-text>
           </v-card>
-
-        </v-expansion-panel-content>
-        <v-expansion-panel-content id="header"
-        >
-          <div slot="header"><b>Drat</b></div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+        <v-expansion-panel id="header">
+          <v-expansion-panel-title><b>Drat</b></v-expansion-panel-title>
+          <v-expansion-panel-text>
           <v-card>
             <v-card-text>
                 <strong>{{stat.runningRatInstances}}</strong> Rat Instances <strong>Running</strong><br>
                 <strong>{{stat.finishedRatInstances}}</strong> Rat Instances <strong> Finished</strong>
             </v-card-text>
           </v-card>
-          
-        </v-expansion-panel-content>
-      </v-expansion-panel>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </v-card>
   </section>
 
@@ -117,7 +119,7 @@ the License.
           if(!clearing && (auditing || this.currentState=="INDEX" || this.currentState=="MAP"))this.loadIndexedFiles();
         }.bind(this), 1000);
     },
-    beforeDestroy(){
+    beforeUnmount(){
         clearInterval(this.timerClearVar);
     },
     data() {
@@ -134,7 +136,7 @@ the License.
             crawledfiles:0,
             indexedfiles:0,
           },
-          panel:[false,true,true]
+          panel:[0,1]
 
       }
     },

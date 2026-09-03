@@ -17,23 +17,17 @@ the License.
 
   <section class="filelistcomp" >
     <v-card id="filelistcard">
-    <v-toolbar height="50" color="primary" dark>
+    <v-toolbar height="50" color="primary">
       <v-toolbar-title>Files List</v-toolbar-title>
        <v-spacer></v-spacer>
     </v-toolbar>
     <strong v-if="fileslist.length==0">Empty List of files</strong>
     <v-list >
-    <template v-for="(file) in fileslist">
-      <v-list-tile id="tile"
-        :key="file.link"
-        avatar
-        ripple
-      >
-        <v-list-tile-content>
-          <v-list-tile-title>{{file.title}}</v-list-tile-title>
-        </v-list-tile-content> 
-      </v-list-tile>
-      <v-divider :key="file.link"/>
+    <template v-for="(file) in fileslist" :key="file.link">
+      <v-list-item id="tile" ripple>
+        <v-list-item-title>{{file.title}}</v-list-item-title>
+      </v-list-item>
+      <v-divider/>
     </template>
     </v-list>
     </v-card>
@@ -55,7 +49,7 @@ import store from './../store/store';
         }.bind(this), 1000);
       
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearVar);
     },
     data() {

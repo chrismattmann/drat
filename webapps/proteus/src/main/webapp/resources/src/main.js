@@ -13,35 +13,40 @@ License for the specific language governing permissions and limitations under
 the License.
 */
 
-import Vue from 'vue'
-import Vuetify from 'vuetify'
+import { createApp } from 'vue'
+import { createVuetify } from 'vuetify'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+import { aliases, mdi } from 'vuetify/iconsets/mdi'
+
+import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
+
 import App from './App.vue'
-import VueLogger from 'vuejs-logger'
 import store from './store/store'
-import VuejsDialog from 'vuejs-dialog'
-import 'vuetify/dist/vuetify.min.css'
-import 'material-design-icons-iconfont/dist/material-design-icons.css'
+import logger from './logger'
 
+const vuetify = createVuetify({
+  components,
+  directives,
+  /*
+   * Named explicitly. Vuetify 1 rendered whatever ligature the template
+   * asked for through the Material Icons font; Vuetify 3 has an icon set to
+   * choose and defaults to mdi, so the names in the templates are mdi names
+   * now (mdi-chevron-left, not chevron_left).
+   */
+  icons: { defaultSet: 'mdi', aliases, sets: { mdi } }
+})
 
-Vue.config.productionTip = true
-Vue.use(Vuetify)
-Vue.use(VuejsDialog)
+const app = createApp(App)
 
+/*
+ * this.$log, as vuejs-logger provided. That package is built against Vue 2's
+ * plugin API and has no Vue 3 release, and what the components use of it is
+ * four passthrough methods -- so it is those four rather than a dependency.
+ */
+app.config.globalProperties.$log = logger
 
-
-const options = {
-  logLevel : 'debug',
-  // optional : defaults to false if not specified
-  stringifyArguments : false,
-  // optional : defaults to false if not specified
-  showLogLevel : false
-}
-
-Vue.use(VueLogger,options)
-
-
-
-new Vue({
-  store,
-  render: h => h(App)
-}).$mount('#app')
+app.use(store)
+app.use(vuetify)
+app.mount('#app')
