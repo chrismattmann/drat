@@ -374,9 +374,16 @@ export default {
  * lighter slices.
  */
 .chart {
+  /*
+   * Three quarters of the width available to it, centred. Each of these
+   * scales by its viewBox to whatever it is given, and given the full width
+   * of a card they drew at a size that reads like a zoomed-in browser.
+   */
   width: 100%;
+  max-width: 75%;
   height: auto;
   display: block;
+  margin: 0 auto;
 }
 
 .chart text,
