@@ -33,6 +33,14 @@ public class FileConstants {
 
   /** Which phase of a run is happening, and who started it. See RunMarker. */
   public static final String CURRENT_RUN_FILE = buildDratSubdirectoryPath("/data/run");
+
+  /**
+   * The run that finished most recently. Kept because what a run was told to
+   * skip outlives it: it is what says how many files were ever going to be
+   * crawled, and a total that forgets goes back to the whole repository the
+   * moment a run ends.
+   */
+  public static final String LAST_RUN_FILE = buildDratSubdirectoryPath("/data/last-run");
   public static final String DRAT_TEMP_LOG_OUTPUT = buildDratSubdirectoryPath("/data/drat_output.log");
   public static final String SOLR_INDEXER_CONFIG_PATH = buildDratSubdirectoryPath("/filemgr/etc/indexer.properties");
 

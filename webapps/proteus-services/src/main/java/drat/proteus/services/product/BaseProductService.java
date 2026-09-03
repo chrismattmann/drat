@@ -22,6 +22,7 @@ import drat.proteus.services.general.AbstractRestService;
 import drat.proteus.services.constants.ProteusEndpointConstants;
 import drat.proteus.services.general.Item;
 import org.apache.oodt.cas.filemgr.structs.Product;
+import org.apache.oodt.cas.filemgr.structs.ProductType;
 import org.apache.oodt.cas.filemgr.structs.Reference;
 import org.apache.oodt.cas.filemgr.system.FileManagerClient;
 
@@ -39,19 +40,39 @@ public class BaseProductService extends AbstractRestService {
   }
 
   protected List<Item> getRecentProductsByChannel(String channel) {
-    return generateProducts(10);
+    return generateProducts(10, null);
   }
 
   protected List<Item> getRecentProductsByChannelAndTypeId(String channel,
       String typeId) {
-    return generateProducts(10);
+    return generateProducts(10, typeId);
   }
 
-  private List<Item> generateProducts(int topN) {
+  /**
+   * The most recent products, of one type when a type is named.
+   *
+   * <p>
+   * The type was accepted and then ignored here, so every caller got the most
+   * recent products of any type whatever it asked for. That reads as a list
+   * of the repository's files right up until an audit starts producing its
+   * own: the RAT logs a run generates are products too, they are the most
+   * recent ones by definition, and they pushed the files being audited out of
+   * a list whose whole purpose is to show them.
+   * </p>
+   */
+  private List<Item> generateProducts(int topN, String typeName) {
     List<Item> products = new ArrayList<Item>();
     try {
       OodtClientPool.withFileManagerClient(client -> {
-        List<Product> recentProducts = client.getTopNProducts(topN);
+        List<Product> recentProducts;
+        if (typeName != null && typeName.trim().length() > 0) {
+          ProductType type = client.getProductTypeByName(typeName.trim());
+          recentProducts = type == null
+              ? new ArrayList<Product>()
+              : client.getTopNProducts(topN, type);
+        } else {
+          recentProducts = client.getTopNProducts(topN);
+        }
         for (Product product : recentProducts) {
           products.add(createProductItem(client, product));
         }

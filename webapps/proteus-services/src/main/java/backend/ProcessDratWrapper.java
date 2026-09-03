@@ -43,6 +43,7 @@ import drat.proteus.workflow.rest.WorkflowRestResource;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Properties;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -81,6 +82,51 @@ public class ProcessDratWrapper extends GenericProcess
   private static final long DRAT_PROCESS_WAIT_DURATION = 3000;
   private static final int MAX_RESET_TRIES = 10;
 
+
+  /** What a run skips by default, matching the command line's own default. */
+  public static final List<String> DEFAULT_EXCLUDES =
+      Collections.unmodifiableList(Arrays.asList("target", ".git"));
+
+  private List<String> excludes = new ArrayList<String>(DEFAULT_EXCLUDES);
+
+  /** What this run should not crawl. Null restores the defaults. */
+  public synchronized void setExcludes(List<String> names) {
+    this.excludes = names == null
+        ? new ArrayList<String>(DEFAULT_EXCLUDES)
+        : new ArrayList<String>(names);
+  }
+
+  public synchronized List<String> getExcludes() {
+    return new ArrayList<String>(this.excludes);
+  }
+
+  /**
+   * The exclude names as the crawler's precondition wants them.
+   *
+   * <p>
+   * Built to the same shape as the command line's build_exclude_regex, so a
+   * run from here skips what a run from there skips: any path with one of
+   * these as a whole component.
+   * </p>
+   */
+  String excludeRegex() {
+    StringBuilder joined = new StringBuilder();
+    for (String name : this.excludes) {
+      if (name == null || name.trim().length() == 0) {
+        continue;
+      }
+      if (joined.length() > 0) {
+        joined.append('|');
+      }
+      joined.append(java.util.regex.Pattern.quote(name.trim()));
+    }
+    if (joined.length() == 0) {
+      return "";
+    }
+    return ".*(^|/)(" + joined + ")(/|$).*";
+  }
+
+  private static final String RESET_CMD = "reset";
   private static final String CRAWL_CMD = "crawl";
   private static final String INDEX_CMD = "index";
   private static final String MAP_CMD = "map";
@@ -187,7 +233,13 @@ public class ProcessDratWrapper extends GenericProcess
       String beanRepo = System.getProperty("org.apache.oodt.cas.crawl.bean.repo",
               FileConstants.CRAWLER_CONFIG);
       String crawlerId = "MetExtractorProductCrawler";
-      System.setProperty("DRAT_EXCLUDE","");
+      // What not to crawl. This used to be set to nothing at all, so a run
+      // from the UI audited a repository's .git objects and its build output
+      // along with its source: on Mnemosyne that is 15,818 files and 5.1GB
+      // rather than 2,400 files and 0.1GB, and the licences RAT reports for
+      // compiled artefacts and git blobs are noise in the summary. The
+      // command line has excluded these all along; this had no way to say so.
+      System.setProperty("DRAT_EXCLUDE", excludeRegex());
       FileSystemXmlApplicationContext appContext = null;
       MetExtractorProductCrawler crawler = null;
       try {
@@ -352,6 +404,11 @@ public class ProcessDratWrapper extends GenericProcess
     goLog.logInfo("Starting", "");
     // before go, always reset
     goLog.logInfo("DRAT: go: resetting.");
+    // Said before it starts. Clearing a full catalog is minutes of work in
+    // which DRAT is plainly busy, and nothing here marked it: the run showed
+    // as idle throughout, with the previous run's charts still on screen,
+    // because as far as anything watching could tell nothing was happening.
+    setStatus(RESET_CMD);
     reset();
     goLog.logInfo("DRAT: go: Version Control Check");
     versionControlCheck();
@@ -855,17 +912,97 @@ public class ProcessDratWrapper extends GenericProcess
     }
   }
 
+  /**
+   * Clear the workflow instances, by asking the manager that owns them.
+   *
+   * <p>
+   * This deleted a directory called data/workflow whatever the deployment was
+   * configured with. That is the Lucene repository's default path, and a
+   * deployment holding its instances in a database has no such directory --
+   * so the delete found nothing, reported nothing, and every instance from
+   * every previous run stayed exactly where it was while the reset reported
+   * success.
+   * </p>
+   *
+   * <p>
+   * The manager owns whichever repository was configured, so asking it works
+   * for all of them and needs no knowledge of where the instances live. It
+   * refuses while anything is executing, which is the right answer here too.
+   * </p>
+   */
   private synchronized void wipeInstanceRepo() {
-    File instanceRepo = new File(PathUtils.replaceEnvVariables("[DRAT_HOME]"), "data/workflow");
     try {
-      if (instanceRepo.exists()) {
-        FileUtils.forceDelete(instanceRepo);
+      OodtClientPool.withWorkflowManagerClient(client -> {
+        // Called reflectively because clearWorkflowInstances is newer than
+        // the released OODT this builds against, so naming it directly does
+        // not compile until that release is cut. Inline the call and delete
+        // this once oodt.version has it.
+        java.lang.reflect.Method clear = client.getClass()
+            .getMethod("clearWorkflowInstances", boolean.class);
+        clear.invoke(client, true);
+        return null;
+      });
+      LOG.info("DRAT: reset: cleared the workflow instances");
+    } catch (Exception e) {
+      // Said plainly rather than passed over: a reset that reports success
+      // while every instance from every previous run is still there is worse
+      // than one that admits it could not.
+      LOG.warning("DRAT: reset: workflow instances were NOT cleared: "
+          + reasonFor(e) + ". Instances from previous runs are still "
+          + "present.");
+    }
+  }
+
+  /**
+   * Why the manager refused, in words.
+   *
+   * <p>
+   * The error Avro carries back has no message of its own -- its reason lives
+   * in the detail field -- so reporting getMessage() logged "NOT cleared:
+   * null", which says nothing about whether a run was in progress, the
+   * manager was unreachable, or something else.
+   * </p>
+   */
+  private String reasonFor(Exception e) {
+    if (e instanceof java.lang.reflect.InvocationTargetException
+        && e.getCause() instanceof Exception) {
+      return reasonFor((Exception) e.getCause());
+    }
+    if (e instanceof NoSuchMethodException) {
+      return "this OODT has no clearWorkflowInstances rpc, so the manager "
+          + "cannot be asked to clear them";
+    }
+    try {
+      java.lang.reflect.Method detail = e.getClass().getMethod("getDetail");
+      Object value = detail.invoke(e);
+      if (value != null) {
+        return String.valueOf(value);
+      }
+    } catch (Exception noDetail) {
+      // Not one of the Avro errors; the message below will do.
+    }
+    return e.getMessage() != null ? e.getMessage() : e.toString();
+  }
+
+  /** The workflow manager's configuration, or empty when it cannot be read. */
+  private Properties workflowProperties() {
+    Properties props = new Properties();
+    File file = new File(PathUtils.replaceEnvVariables("[DRAT_HOME]"),
+        "workflow/etc/workflow.properties");
+    if (!file.exists()) {
+      return props;
+    }
+    try {
+      java.io.InputStream in = new java.io.FileInputStream(file);
+      try {
+        props.load(in);
+      } finally {
+        in.close();
       }
     } catch (Exception e) {
-      e.printStackTrace();
-      LOG.warning("DRAT: reset: error deleting the WM instance repository. Message: "
-          + e.getLocalizedMessage());
+      LOG.warning("Unable to read " + file + ": " + e.getMessage());
     }
+    return props;
   }
 
   private synchronized void wipeSolrCore(String coreName) {
