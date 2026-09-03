@@ -50,7 +50,8 @@ import store from './../store/store';
     props: [],
     mounted() {
         this.timerClearVar = setInterval(function () {
-          if(this.currentState=="CRAWL")this.loadData();
+          // "audit" is the whole pipeline, crawl included; see statisticscomp.
+          if(this.currentState=="AUDIT" || this.currentState=="CRAWL")this.loadData();
         }.bind(this), 1000);
       
     },
@@ -73,7 +74,7 @@ import store from './../store/store';
               });
             }
             if(this.currentRepo!=''){
-                axios.get(this.origin+"/proteus-services/service/products?topn=10")
+                axios.get(this.origin+"/proteus-services/service/products?topn=10&type=GenericFile")
                 .then(response=>{
                   
                   response.data.forEach((v, i) => {

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 346 132" role="img" aria-label="DRAT">
+  <title>DRAT</title>
+  <!--
+    The footer wordmark, drawn as paths rather than set in a typeface: it has
+    to look the same wherever this is deployed, and a logo that depends on a
+    font being installed is a logo that quietly changes shape.
+
+    Monoline and squared off, an instrument's lettering rather than a brand's.
+    The amber rule beneath is a scan line: solid across the part already read,
+    faded across the part still to come, which is what this tool spends its
+    time doing.
+  -->
+  <g fill="none" stroke="#F2F5F7" stroke-width="12"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- D -->
+    <path d="M6 26 H34 C54 26 66 42 66 60 C66 78 54 94 34 94 H6 Z"/>
+    <!-- R -->
+    <path d="M88 94 V26 H118 C136 26 136 60 118 60 H88"/>
+    <path d="M116 60 L148 94"/>
+    <!-- A -->
+    <path d="M170 94 L200 26 L230 94"/>
+    <path d="M183 68 H217"/>
+    <!-- T -->
+    <path d="M252 26 H312"/>
+    <path d="M282 26 V94"/>
+  </g>
+  <path d="M6 116 H196" stroke="#E9B44C" stroke-width="7" stroke-linecap="round"/>
+  <path d="M206 116 H312" stroke="#E9B44C" stroke-width="7" stroke-linecap="round"
+        opacity="0.32"/>
+</svg>

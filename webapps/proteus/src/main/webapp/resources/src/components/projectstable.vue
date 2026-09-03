@@ -339,7 +339,7 @@ import store from './../store/store';
                     this.count.numFound = response.data.response.numFound;
                     this.count.start = response.data.response.start;
                   })
-                  .catch(error=>{
+                  .catch(()=>{
 
                   })
               }

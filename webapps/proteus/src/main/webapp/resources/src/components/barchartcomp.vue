@@ -41,7 +41,8 @@ import store from './../store/store'
     store,
     mounted() {
         this.timerClearvar = setInterval(function () {
-          if(this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
+          // "audit" is the whole pipeline, the RAT steps included; see statisticscomp.
+          if(this.currentState=="AUDIT" || this.currentState=="MAP" || this.currentState=="REDUCE" || this.currentState=="DONE")this.loadData();
         }.bind(this), 1000);
         
     },
@@ -60,7 +61,24 @@ import store from './../store/store'
      
     },
     methods: {
+      /*
+       * Nothing to show until RAT has finished at least one audit. The
+       * licence breakdown is what RAT reported, and a run that has only
+       * crawled so far has nothing of its own to report -- so what would be
+       * drawn is the previous run's, on a page that is describing this one.
+       * The statistics core survives a reset by design, which is what made
+       * the stale figures look current.
+       */
+      nothingAuditedYet(){
+        // Not "while a run is happening": a run that stopped after clearing
+        // the catalog has audited nothing either, and the breakdown that came
+        // back the moment it ended was the previous run's.
+        return !(store.state.ratFinished > 0);
+      },
         loadData(){
+        if(this.nothingAuditedYet()){
+          return;
+        }
           if(this.currentRepo=='')return;
           var query = 'parent:"' + this.currentRepo + '" AND type:file';
           axios.get(this.origin + '/proteus-services/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=0&facet=true&facet.field=license&wt=json')

@@ -24,7 +24,20 @@ const store = new Vuex.Store({
         currentRepo:'',
         origin:'',
         currentActionRequest:'',
-        currentActionStep:'IDLE'
+        currentActionStep:'IDLE',
+        // What DRAT is actually doing, as the back end reports it. A run
+        // started from the command line is a real run and shows here too, so
+        // the watch view is driven by this rather than by whether somebody
+        // pressed a button in this browser.
+        run:{running:false,phase:'',startedBy:'',repo:''},
+        // How many RAT audits have finished. The licence breakdown is what
+        // RAT found, so until one has finished there is nothing of this run's
+        // to show -- and what is on screen would be the previous run's.
+        ratFinished:0,
+        // Whether every crawled file has been indexed. The mime breakdown on
+        // the run view is drawn from the index, so before this there is
+        // nothing of this run's in it to draw.
+        indexDone:false
     },
     mutations:{
         invert(state){
@@ -47,6 +60,15 @@ const store = new Vuex.Store({
         },
         setCurrentActionStep(state,newVal){
             state.currentActionStep = newVal;
+        },
+        setRun(state,newVal){
+            state.run = newVal;
+        },
+        setRatFinished(state,newVal){
+            state.ratFinished = newVal;
+        },
+        setIndexDone(state,newVal){
+            state.indexDone = newVal;
         }
         
     },

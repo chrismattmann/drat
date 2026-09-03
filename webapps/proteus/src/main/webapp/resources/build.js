@@ -45,10 +45,26 @@ function complete() {
 
 remove(dist);
 
+/*
+ * Webpack 4 hashes with MD4, which OpenSSL 3 does not provide, so the build
+ * dies on any Node from 17 onwards with ERR_OSSL_EVP_UNSUPPORTED before it
+ * compiles a line. The flag puts the old provider back. Added here rather
+ * than in the npm script because the flag does not exist on older Node and
+ * passing it there would break the build for anyone still on one; this way
+ * each version gets what it needs.
+ */
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+const buildEnv = Object.assign({}, process.env);
+if (nodeMajor >= 17 && !/openssl-legacy-provider/.test(buildEnv.NODE_OPTIONS || '')) {
+  buildEnv.NODE_OPTIONS =
+    (buildEnv.NODE_OPTIONS ? buildEnv.NODE_OPTIONS + ' ' : '') +
+    '--openssl-legacy-provider';
+}
+
 const child = spawn(
   path.join(root, 'node_modules', '.bin', 'vue-cli-service'),
   ['build'],
-  { cwd: root, env: process.env, stdio: 'inherit' }
+  { cwd: root, env: buildEnv, stdio: 'inherit' }
 );
 
 const completionPoll = setInterval(() => {

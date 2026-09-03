@@ -155,8 +155,6 @@ the License.
                             .domain([0, d3.max(zippedData)])
                             .range([0, chartWidth]);
 
-                        var y = d3.scaleLinear()
-                            .range([chartHeight + gapBetweenGroups, 0]);
 
                         var yAxis = d3.axisLeft(x)
                             .tickFormat('')
@@ -244,7 +242,6 @@ the License.
                             .attr('transform', function (d, i) {
                                 var height = legendRectSize + legendSpacing;
                                 var offset = -gapBetweenGroups/2;
-                                var horz = spaceForLabels + chartWidth + 40 - legendRectSize;
                                 var vert = i * height - offset;
                                 return 'translate(' + 0+ ',' + vert + ')';
                             });
