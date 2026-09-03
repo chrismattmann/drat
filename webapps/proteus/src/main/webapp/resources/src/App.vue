@@ -115,10 +115,17 @@ the License.
         </v-col>
       <v-spacer />
 
+      <!--
+        Side by side, sharing the width. A v-spacer between them pushed each
+        to its own edge with the whole middle of the page empty between.
+      -->
       <v-row>
+        <v-col cols="12" md="6">
           <licensepiecomp/>
-          <v-spacer/>
+        </v-col>
+        <v-col cols="12" md="6">
           <topmimepiecomp/>
+        </v-col>
       </v-row>
 
       </section>
@@ -361,6 +368,40 @@ export default {
 </script>
 
 <style>
+/*
+ * Chart text. The slice and legend labels inherited whatever the page had,
+ * which at the sizes these are drawn at was too faint to read against the
+ * lighter slices.
+ */
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart text,
+#bublesvg text {
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+}
+
+.chart .slice-label,
+#bublesvg .bubble-label {
+  font-size: 12px;
+  font-weight: 600;
+  paint-order: stroke;
+}
+
+.chart .legend-label {
+  font-size: 12.5px;
+  fill: #2c3e50;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .chart-empty {
+  font-size: 13px;
+  fill: #6b7785;
+}
+
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;

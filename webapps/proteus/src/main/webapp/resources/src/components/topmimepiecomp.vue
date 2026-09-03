@@ -19,22 +19,25 @@ the License.
       <v-toolbar color="primary">
          <v-toolbar-title class="text-white">Top MIME Types</v-toolbar-title>
       </v-toolbar>
-      <v-row>
-        <v-spacer/>
-        <v-col cols="3">
-          <v-btn @click="count--;if(count<0)count=0">-</v-btn>
-        </v-col>
-        <v-col cols="3" >
+      <!--
+        How many types to show. This was a text field bound with :value, which
+        is not a Vuetify 3 prop -- so the field held nothing and its floating
+        label sat across the middle of the box, on top of where the number
+        should have been. It is a reading rather than something to type into,
+        so it is said as one.
+      -->
+      <div class="count-control">
+        <v-btn size="small" variant="tonal" aria-label="Show fewer types"
+          :disabled="count <= 1" @click="fewer">&minus;</v-btn>
+        <span class="count-value">
+          <strong>{{ count }}</strong>
+          <span class="count-caption">types</span>
+        </span>
+        <v-btn size="small" variant="tonal" aria-label="Show more types"
+          :disabled="count >= 25" @click="more">+</v-btn>
+      </div>
 
-          <v-text-field label="Count" :value="count"></v-text-field>
-        </v-col>
-        <v-col cols="3">
-          <v-btn @click="count++;if(count>50)count=25">+</v-btn>
-        </v-col>
-        <v-spacer/>
-      </v-row>
-
-      <svg id="pietopmimesvg" width="420" height="525"></svg>
+      <svg id="pietopmimesvg" class="chart"></svg>
     </v-card>
   </section>
 
@@ -43,8 +46,8 @@ the License.
 <script lang="js">
   import * as d3 from 'd3';
   import axios from 'axios';
-  import tinycolor from 'tinycolor2';
   import store from './../store/store';
+  import { drawPie } from './../charts/pie';
 
   export default  {
     name: 'topmimepiecomp',
@@ -64,6 +67,16 @@ the License.
       }
     },
     methods: {
+        /*
+         * Bounded, where the old handlers were not: "+" wrapped a count of 51
+         * back to 25, and "-" ran down to zero and drew an empty chart.
+         */
+        fewer(){
+          if(this.count > 1) this.count--;
+        },
+        more(){
+          if(this.count < 25) this.count++;
+        },
         init(rows){
           axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&fl=mime_*&wt=json')
           .then(response2=>{
@@ -108,68 +121,10 @@ the License.
 
                   console.log(result);
 
-                var svg = d3.select("#pietopmimesvg");
-                  svg.selectAll("*").remove();
-                  var width = +svg.attr("width"),
-                  height = +svg.attr("height"),
-                  radius = Math.min(width, height) / 4,
-                  pieposx = (width / 2)+90,
-                  pieposy = (height / 2)-140,
-                  g = svg.append("g").attr("transform", "translate(" +pieposx  + "," +pieposy + ")");
-
-                  var color = d3.scaleOrdinal(d3.schemePiYG[11]);
-
-                  var pie = d3.pie()
-                      .sort(null)
-                      .value(function(d) { return d.y; });
-
-                  var path = d3.arc()
-                      .outerRadius(radius - 10)
-                      .innerRadius(0);
-
-                  var label = d3.arc()
-                      .outerRadius(radius - 40)
-                      .innerRadius(radius - 40);
-                  var arc = g.selectAll(".arc")
-                      .data(pie(result))
-                      .enter().append("g")
-                        .attr("class", "arc");
-
-                    arc.append("path")
-                        .attr("d", path)
-                        .attr("style", function(d) { return "fill:"+color(d.data.key) });
-
-                    arc.append("text")
-                        .attr("transform", function(d) { return "translate(" + label.centroid(d) + ")"; })
-                        .attr("dy", "0.35em")
-                        .attr('style', d => {
-                          return `fill: ${
-                            tinycolor(color(d.data.key)).isLight()
-                              ? '#000000'
-                              : '#ffffff'
-                          }`;
-                        })
-                        .text(function(d) { return d.data.key; });
-
-                  var legend = d3.select("#pietopmimesvg").append("svg")
-                            .attr("class", "legend")
-                            .selectAll("g")
-                            .data(pie(result))//setting the data as we know there are only two set of data[programmar/tester] as per the nest function you have written
-                            .enter().append("g")
-                            .attr("transform", function(d, i) { return "translate(0," + ((i + 1)* 20) + ")"; });
-
-                        legend.append("rect")
-                            .attr("width", 18)
-                            .attr("height", 18)
-                            .style("fill", function(d) {
-                                return color(d.data.key);
-                              });
-
-                        legend.append("text")
-                            .attr("x", 24)
-                            .attr("y", 9)
-                            .attr("dy", ".35em")
-                            .text(function(d) { return d.data.key; });
+                drawPie("#pietopmimesvg", result, {
+                  scheme: d3.schemeTableau10,
+                  emptyNote: "No mime data yet"
+                });
 
                     console.log(result);
                   });
@@ -187,8 +142,34 @@ the License.
 }
 </script>
 
-<style scoped >
+<style scoped>
   #topmimecard {
-    padding:5%;
+    padding: 16px;
+  }
+
+  .count-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 6px 0 10px 0;
+  }
+
+  .count-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 74px;
+    justify-content: center;
+  }
+
+  .count-value strong {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .count-caption {
+    font-size: 12px;
+    opacity: 0.7;
   }
 </style>

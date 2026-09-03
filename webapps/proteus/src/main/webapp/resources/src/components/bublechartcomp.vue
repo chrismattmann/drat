@@ -20,7 +20,7 @@ the License.
         <v-toolbar-title class="text-white">All MIME Types</v-toolbar-title>
       </v-toolbar>
 
-      <svg id="bublesvg" width="400" height="300"></svg>
+      <svg id="bublesvg" class="chart" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg>
     </v-card>
 
   </section>
@@ -159,7 +159,24 @@ the License.
                           }`;
               })
               .style("text-anchor", "middle")
-                      .text(function(d) { return d.data.className.substring(0, d.r / 3); });
+                      .attr("class", "bubble-label")
+                      /*
+                       * Only what the circle can hold. This took r/3
+                       * characters, which assumes a character is three pixels
+                       * wide -- they are nearer six at this size, so a label
+                       * ran well past its own bubble and across its
+                       * neighbours. A circle narrower than a few characters
+                       * is left unlabelled; the name is on its tooltip.
+                       */
+                      .text(function(d) {
+                        var name = d.data.className;
+                        var room = Math.floor((d.r * 1.7) / 6);
+                        if (room < 3) {
+                          return "";
+                        }
+                        return name.length <= room
+                            ? name : name.substring(0, room - 1) + "\u2026";
+                      });
               }
 
 
