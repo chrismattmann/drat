@@ -16,12 +16,14 @@ the License.
 <template lang="html">
 
   <section class="licensepiecomp">
-    <v-card id="licensecard">
+    <v-card id="licensecard" class="chartcard">
       <v-toolbar color="primary">
          <v-toolbar-title class="text-white">License Types</v-toolbar-title>
       </v-toolbar>
 
-      <svg id="pielicensesvg" class="chart"></svg>
+      <div class="chartbody">
+        <svg id="pielicensesvg" class="chart"></svg>
+      </div>
     </v-card>
   </section>
 
@@ -123,9 +125,14 @@ the License.
 
 }
 
-#licensecard {
-    /* margin-top: 5%; */
-    margin-bottom :5%;
-    padding: 5%;
+/*
+   * No padding on the card itself. 5% here sat between the card's edge and
+   * its toolbar, so this card's heading started lower than the one beside it
+   * -- which has 16px -- and the two cards read as misaligned. The padding
+   * belongs around the chart, where it was meant to be.
+   */
+  #licensecard {
+    margin-bottom: 0;
+    padding: 0;
   }
 </style>

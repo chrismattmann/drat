@@ -116,18 +116,14 @@ the License.
                 <div class="licence-filters">
                   <v-chip
                     v-for="kind in licenceKinds"
-                    :key="kind.flag"
-                    :color="license[kind.flag] ? 'primary' : undefined"
-                    :variant="license[kind.flag] ? 'flat' : 'outlined'"
-                    filter
-                    :model-value="license[kind.flag]"
+                    :key="kind.value"
+                    :color="isLicenceOn(kind.value) ? 'primary' : undefined"
+                    :variant="isLicenceOn(kind.value) ? 'flat' : 'outlined'"
                     class="licence-chip"
-                    @click="toggleLicence(kind.flag)"
+                    @click="toggleLicence(kind.value)"
                   >
-                    {{ kind.label }}
-                    <span class="licence-count">
-                      {{ license.docs[kind.field] || 0 }}
-                    </span>
+                    {{ kind.value }}
+                    <span class="licence-count">{{ kind.count }}</span>
                   </v-chip>
                 </div>
 
@@ -236,22 +232,19 @@ import store from './../store/store';
         dialog:false,
         selectedItem:'',
         /*
-         * One row per licence RAT reports, so the chips are generated rather
-         * than seven near-identical copies that could drift apart.
+         * Which licences are switched off. The chips used to be a fixed list
+         * of seven taken from the project document's license_* fields, which
+         * is a different tally from the one on the files: it counts Standards
+         * -- 2645 for Tika -- which is not a value any file carries, and it
+         * has no entry for the licences that do turn up, such as MIT. So a
+         * chip could read 2645 while the table it filtered showed 3, and the
+         * files whose licence had no chip were swept in under whichever chip
+         * the fallback happened to name.
+         *
+         * The chips are built from the files instead, so a chip exists when
+         * that licence does and its count is the number of rows it selects.
          */
-        filesPerPage:[
-          {title:'25',value:25},{title:'50',value:50},
-          {title:'100',value:100},{title:'All',value:-1}
-        ],
-        licenceKinds:[
-          { flag:'standard',  label:'Standards', field:'license_Standards' },
-          { flag:'unknown',   label:'Unknown',   field:'license_Unknown' },
-          { flag:'apache',    label:'Apache',    field:'license_Apache' },
-          { flag:'binaries',  label:'Binaries',  field:'license_Binaries' },
-          { flag:'generated', label:'Generated', field:'license_Generated' },
-          { flag:'notes',     label:'Notes',     field:'license_Notes' },
-          { flag:'archives',  label:'Archives',  field:'license_Archives' }
-        ],
+        licencesOff:[],
           headers: [
         {
           title: '#',
@@ -289,13 +282,19 @@ import store from './../store/store';
               && value.toString().toLowerCase().includes(search);
         });
       },
-      toggleLicence(flag){
-        this.license[flag] = !this.license[flag];
+      isLicenceOn(value){
+        return this.licencesOff.indexOf(value) === -1;
+      },
+      toggleLicence(value){
+        const at = this.licencesOff.indexOf(value);
+        if(at === -1){
+          this.licencesOff.push(value);
+        }else{
+          this.licencesOff.splice(at, 1);
+        }
       },
       resetLicenceFilters(){
-        for(const kind of this.licenceKinds){
-          this.license[kind.flag] = true;
-        }
+        this.licencesOff = [];
       },
       moreClicked :function(item){
         this.$log.info("as");
@@ -303,6 +302,8 @@ import store from './../store/store';
         //this.selectedItem = this.docs[index];
         this.selectedItem = item;
         this.search = '';
+        // Filters belong to the project being looked at, not to the last one.
+        this.licencesOff = [];
         this.loadLicenseData();
         this.loadFileDetails();
       },
@@ -393,36 +394,25 @@ import store from './../store/store';
       currentrepo(){
         return store.state.currentRepo;
       },
+      /*
+       * One chip, one licence, and every licence has a chip -- so what the
+       * chips add up to is what the table shows.
+       */
+      licenceKinds(){
+        const counts = {};
+        for(const file of (this.license.files || [])){
+          const value = file.license || 'Unknown';
+          counts[value] = (counts[value] || 0) + 1;
+        }
+        return Object.keys(counts)
+          .map(value => ({ value: value, count: counts[value] }))
+          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+      },
       sortedfiles:{
 
-        /*
-         * One chip, one licence. Apache files used to be shown when either
-         * Apache or Standards was on, and Unknown ones likewise, so Standards
-         * acted as a master switch that put everything back on screen and no
-         * single chip could be used to narrow anything down.
-         *
-         * Anything RAT reports under a name with no chip of its own still
-         * follows Standards, which is where it was already counted.
-         */
         get:function(){
-          const named = {
-            Apache: 'apache',
-            Unknown: 'unknown',
-            Standards: 'standard',
-            Binaries: 'binaries',
-            Generated: 'generated',
-            Notes: 'notes',
-            Archives: 'archives'
-          };
-
-          if(!this.license.files){
-            return [];
-          }
-
-          return this.license.files.filter(file => {
-            const flag = named[file.license] || 'standard';
-            return !!this.license[flag];
-          });
+          return (this.license.files || [])
+            .filter(file => this.isLicenceOn(file.license || 'Unknown'));
         },
 
         set:function(docs){
