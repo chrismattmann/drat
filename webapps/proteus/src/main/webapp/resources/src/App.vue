@@ -14,57 +14,46 @@ the License.
 -->
 <template>
   <div id="app">
-    <v-app >
-     
+    <v-app>
+
     <controllbar />
     <v-navigation-drawer
-      :mini-variant.sync="mini"
       v-model="drawer"
-      hide-overlay
-      absolute
-      stateless
+      :rail="mini"
+      permanent
     >
-      
-      <v-toolbar flat class="transparent">
-
-        <v-list class="pa-0">
-          <v-list-tile avatar>
-            <v-list-tile-avatar>
+      <v-list class="pa-0">
+        <v-list-item>
+          <template #prepend>
+            <v-avatar size="32">
               <img width="32px" height="32px" src="drat-mark.svg" alt="DRAT">
-            </v-list-tile-avatar>
-  
-            <v-list-tile-content>
-              <v-list-tile-title>Proteus</v-list-tile-title>
-            </v-list-tile-content>
-  
-            <v-list-tile-action>
-              <v-btn
-                icon
-                @click.stop="mini = !mini"
-              >
-                <v-icon>chevron_left</v-icon>
-              </v-btn>
-            </v-list-tile-action>
-          </v-list-tile>
-        </v-list>
-      </v-toolbar>
-      <v-spacer/>
-      <v-list class="pt-0" dense>
-        <v-divider></v-divider>
-  
-        <v-list-tile
+            </v-avatar>
+          </template>
+
+          <v-list-item-title>Proteus</v-list-item-title>
+
+          <template #append>
+            <v-btn icon variant="text" @click.stop="mini = !mini">
+              <v-icon>mdi-chevron-left</v-icon>
+            </v-btn>
+          </template>
+        </v-list-item>
+      </v-list>
+
+      <v-divider></v-divider>
+
+      <v-list class="pt-0" density="compact">
+        <v-list-item
           v-for="item in items"
           :key="item.title"
           @click="selectmenu(item)"
         >
-          <v-list-tile-action>
+          <template #prepend>
             <v-icon>{{ item.icon }}</v-icon>
-          </v-list-tile-action>
-  
-          <v-list-tile-content>
-            <v-list-tile-title>{{ item.title }}</v-list-tile-title>
-          </v-list-tile-content>
-        </v-list-tile>
+          </template>
+
+          <v-list-item-title>{{ item.title }}</v-list-item-title>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
     <div id="contentpane" >
@@ -85,24 +74,24 @@ the License.
           </span>
           <span v-else>No run in progress</span>
         </span>
-        <v-btn small color="primary" v-if="!progress" @click="watchRun">
+        <v-btn size="small" color="primary" v-if="!progress" @click="watchRun">
           Watch this run
         </v-btn>
-        <v-btn small v-else @click="backToSummary">
+        <v-btn size="small" v-else @click="backToSummary">
           Back to summary
         </v-btn>
       </v-card>
 
-      <v-layout row wrap v-if="progress">
-        <v-flex xs3>
+      <v-row v-if="progress">
+        <v-col cols="3">
           <filelistcomp/>
-        </v-flex>
-        
-        <v-flex xs3>
+        </v-col>
+
+        <v-col cols="3">
           <progresscomp/>
           <statisticscomp/>
-        </v-flex>
-        <v-flex xs6>
+        </v-col>
+        <v-col cols="6">
           <section >
           <!--
             Drawn only once this run has something of its own to draw. Not
@@ -114,75 +103,67 @@ the License.
           <barchartcomp v-if="licencesToShow" />
           <piechart v-if="mimeTypesToShow" />
           </section>
-        </v-flex>
-       
-      </v-layout>
+        </v-col>
+
+      </v-row>
       <section v-else-if="stateView=='summary'">
       <projectstable  />
-       <v-flex xs12>
+       <v-col cols="12">
           <section>
             <bublechartcomp/>
           </section>
-        </v-flex>
+        </v-col>
       <v-spacer />
-      
-      <v-layout row>
-       
+
+      <v-row>
           <licensepiecomp/>
           <v-spacer/>
           <topmimepiecomp/>
-        
-      </v-layout>
+      </v-row>
 
       </section>
       <auditsummarycomp v-else/>
       <v-snackbar
         v-model="snackbar"
-        top
-        right
+        location="top right"
         :timeout="6000"
-        
       >
-        <v-badge left center>
-        <span slot="badge">{{snackbarmessageindex}}</span>
-        
-      </v-badge>
-      <v-icon
-      @click="snackbarmessageindex--"
-          color="grey lighten-1"
+        <v-badge :content="snackbarmessageindex" inline></v-badge>
+        <v-icon
+          color="grey-lighten-1"
+          @click="snackbarmessageindex--"
         >
-          navigate_before
+          mdi-chevron-left
         </v-icon>
         {{snackbarmessages[snackbarmessageindex]}}
 
         <v-icon
-          color="grey lighten-1"
+          color="grey-lighten-1"
           @click="snackbarmessageindex++;
           if(snackbarmessageindex>=snackbarmessages.length)snackbarmessageindex=snackbarmessages.length-1"
         >
-          navigate_next
+          mdi-chevron-right
         </v-icon>
         <v-icon
-          color="red lighten-1"
+          color="red-lighten-1"
           @click="removeelement(snackbarmessageindex);"
         >
-          clear
+          mdi-close
         </v-icon>
-        <v-btn
-          color="pink"
-          flat
-          @click="snackbar = false"
-        >
-          Close
-        </v-btn>
-      </v-snackbar>  
+
+        <template #actions>
+          <v-btn color="pink" variant="text" @click="snackbar = false">
+            Close
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
-    
+
     <v-spacer/>
     <v-card id="footercard">
       <img id="footerlogo" height="64px" src="drat-logo.svg" alt="DRAT">
     </v-card>
-       
+
     </v-app>
   </div>
 </template>
@@ -227,8 +208,8 @@ export default {
       snackbarmessages:[],
       drawer: true,
       items: [
-        { title: 'Summary', icon: 'dashboard' },
-        { title: 'Audit', icon: 'question_answer' },
+        { title: 'Summary', icon: 'mdi-view-dashboard' },
+        { title: 'Audit', icon: 'mdi-comment-question-outline' },
         
       ],
       mini: true,
@@ -286,6 +267,29 @@ export default {
         // The back end not answering is not a reason to tear the view down;
         // the next poll will say either way.
       });
+    },
+    /*
+     * Both of these were called by the template and by selectmenu below but
+     * were never defined, so every click on Summary or Audit threw
+     * "showsnackbar is not a function" -- after the commits, so the view
+     * still changed and the error only showed in the console. Defined here
+     * rather than carried across as a crash.
+     */
+    showsnackbar(){
+      // Only worth raising when there is something to say.
+      this.snackbar = this.snackbarmessages.length > 0;
+    },
+    removeelement(index){
+      if(index < 0 || index >= this.snackbarmessages.length){
+        return;
+      }
+      this.snackbarmessages.splice(index, 1);
+      if(this.snackbarmessageindex >= this.snackbarmessages.length){
+        this.snackbarmessageindex = Math.max(0, this.snackbarmessages.length - 1);
+      }
+      if(this.snackbarmessages.length === 0){
+        this.snackbar = false;
+      }
     },
     selectmenu(menu){
       // No dialog either way: moving between the summary and the watch view
@@ -350,7 +354,7 @@ export default {
     */
    this.runWatchTimer = setInterval(this.watchForARun, 2000);
   },
-  beforeDestroy(){
+  beforeUnmount(){
     clearInterval(this.runWatchTimer);
   }
 }

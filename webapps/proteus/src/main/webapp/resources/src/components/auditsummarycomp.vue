@@ -16,8 +16,8 @@ the License.
 
   <section class="auditsummarycomp">
     <v-card>
-        <v-toolbar dark color="primary">
-         <v-toolbar-title class="white--text">Audit Summary</v-toolbar-title>
+        <v-toolbar color="primary">
+         <v-toolbar-title class="text-white">Audit Summary</v-toolbar-title>
         </v-toolbar>
         <svg id="hzBarChart"/>
     </v-card>

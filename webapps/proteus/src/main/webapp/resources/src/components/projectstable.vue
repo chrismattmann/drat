@@ -16,83 +16,85 @@ the License.
 
 <v-card id="tablecard">
   
-  <v-toolbar dark color="primary">
-     <v-toolbar-title class="white--text">Projects</v-toolbar-title>
+  <v-toolbar color="primary">
+     <v-toolbar-title class="text-white">Projects</v-toolbar-title>
   </v-toolbar>
   <section class="projectstable">
     <v-text-field
       id="projectsearch"
       v-model="projectsearch"
-      append-icon="search"
+      append-inner-icon="mdi-magnify"
       solo
       label="Search"
-      single-line
+      
       hide-details>
     </v-text-field>
+    <!--
+      Filtered here rather than by the table. Vuetify 1 took a row predicate
+      and a custom filter to drive it; Vuetify 3 filters column by column and
+      has neither, so the same predicate is applied to the list that goes in.
+      The rows and the search behave as they did.
+    -->
     <v-data-table id="ttx"
       :headers="headers"
-      :items="docs"
-      :search="projectsearch"
-      :filter="filterProjects"
-      :custom-filter="customfilterprojects"
-      :rows-per-page-items="rowsPerPageItemsforProjects"
+      :items="filteredProjects"
+      :items-per-page-options="rowsPerPageItemsforProjects"
       class="elevation-1"
     >
-    <template slot="items" slot-scope="props">
-        <td class="text-xs-left" >{{props.index+1+count.start}}</td>
-        <td class="text-xs-left">{{ props.item.repo }}</td>
-        <td class="text-xs-left">{{ props.item.name }}</td>
-        <td class="text-xs-left">{{ props.item.description }}</td>
-        <td >
-          <v-btn @click="moreClicked(props.item)">
-          <v-icon medium 
-          
-          >description</v-icon>
-          </v-btn>
-        </td>
+      <template #item="{ item, index }">
+        <tr>
+          <td class="text-left">{{index+1+count.start}}</td>
+          <td class="text-left">{{ item.repo }}</td>
+          <td class="text-left">{{ item.name }}</td>
+          <td class="text-left">{{ item.description }}</td>
+          <td>
+            <v-btn @click="moreClicked(item)">
+              <v-icon>mdi-file-document-outline</v-icon>
+            </v-btn>
+          </td>
+        </tr>
       </template>
       </v-data-table>
   </section>
   <section class="fulldialog">
-    <v-layout row justify-center>
+    <v-row row justify-center>
       <v-dialog v-model="dialog" fullscreen hide-overlay transition="dialog-bottom-transition">
         
         <v-card>
-          <v-toolbar dark color="primary">
-            <v-btn icon dark @click.native="dialog = false">
-              <v-icon>close</v-icon>
+          <v-toolbar color="primary">
+            <v-btn icon @click="dialog = false">
+              <v-icon>mdi-close</v-icon>
             </v-btn>
             <v-toolbar-title>{{selectedItem.name}}</v-toolbar-title>
             <v-spacer></v-spacer>
             <!-- <v-toolbar-items>
-              <v-btn dark flat @click.native="dialog = false">Save</v-btn>
+              <v-btn variant="text" @click="dialog = false">Save</v-btn>
             </v-toolbar-items> -->
           </v-toolbar>
-          <v-layout row justify-space-between>
-            <v-flex xs10 offset-xs1>
+          <v-row row justify-space-between>
+            <v-col cols="10" offset-xs1>
               <v-card  >
                 <v-card id="projectdetails" color="grey lighten-3">
-                     <v-layout  align-center justify-space-between row>
-                      <v-flex xs6 >
+                     <v-row  align-center justify-space-between row>
+                      <v-col cols="6" >
                         <p class="text-sm-left">Project Name</p>
                         
-                      </v-flex>
-                      <v-flex xs6>
-                        <v-text-field
-                          solo
+                      </v-col>
+                      <v-col cols="6">
+                        <v-text-field variant="solo"
                           uneditable
                           :value="selectedItem.name"
                           readonly
                         ></v-text-field>
-                      </v-flex>
-                    </v-layout>
+                      </v-col>
+                    </v-row>
                     
-                    <v-layout  justify-space-between row>
-                      <v-flex xs6 >
+                    <v-row  justify-space-between row>
+                      <v-col cols="6" >
                         <p class="text-sm-left"> Project Description</p>
                        
-                      </v-flex>
-                      <v-flex xs6>
+                      </v-col>
+                      <v-col cols="6">
                         <v-text-field
                           name="input-7-1"
                           solo
@@ -101,14 +103,14 @@ the License.
                           flat
                         ></v-text-field>
                         
-                      </v-flex>
-                    </v-layout>
-                    <v-layout  align-center justify-space-between row>
-                      <v-flex xs6 >
+                      </v-col>
+                    </v-row>
+                    <v-row  align-center justify-space-between row>
+                      <v-col cols="6" >
                         <p class="text-sm-left">Project Repository</p>
                         
-                      </v-flex>
-                      <v-flex xs6>
+                      </v-col>
+                      <v-col cols="6">
                         <v-text-field
                           label="Solo"
                          
@@ -117,13 +119,13 @@ the License.
                           :value="selectedItem.repo"
                           readonly
                         ></v-text-field>
-                      </v-flex>
-                    </v-layout>
-                    <v-layout  align-center justify-space-between row>
-                      <v-flex xs6 >
+                      </v-col>
+                    </v-row>
+                    <v-row  align-center justify-space-between row>
+                      <v-col cols="6" >
                         <p class="text-sm-left">Project Location</p>
-                      </v-flex>
-                      <v-flex xs6>
+                      </v-col>
+                      <v-col cols="6">
                         <v-text-field
                           label="Solo"
                          
@@ -132,16 +134,16 @@ the License.
                           :value="selectedItem.loc_url"
                           readonly
                         ></v-text-field>
-                      </v-flex>
-                    </v-layout>
+                      </v-col>
+                    </v-row>
                 </v-card>
               </v-card>
-            </v-flex>
+            </v-col>
             
            
-          </v-layout>
-          <v-layout row >
-            <v-flex xs10  offset-xs1>
+          </v-row>
+          <v-row row >
+            <v-col cols="10"  offset-xs1>
               <v-card color="grey lighten-3" id="licenselist">
                
                  <br/>
@@ -180,43 +182,45 @@ the License.
                   >Reset</v-btn>
                
               </v-card>
-            </v-flex>
-          </v-layout>
+            </v-col>
+          </v-row>
           <v-card id="licensefiletable">
-            <v-layout>
-              <v-flex xs10 offset-xs1>
+            <v-row>
+              <v-col cols="10" offset-xs1>
                 <v-text-field
                   v-model="search"
-                  append-icon="search"
+                  append-inner-icon="mdi-magnify"
                   label="Search"
-                  single-line
+                  
                   hide-details>
                 </v-text-field>
                
                 <v-data-table
                   :headers="license.headers"
-                  :items="sortedfiles"
-                  :search="search"
-                  :custom-filter="customFilterFiles"
+                  :items="filteredFiles"
                 >
-                  <template slot="items" slot-scope="props">
-                    <td class="text-xs-left">{{props.index+1 }}</td>
-                    <td class="text-xs-left">{{ props.item.id }}</td>
-                    <td class="text-xs-left">{{ props.item.mimetype }}</td>
-                    <td class="text-xs-left">{{ props.item.license }}</td>
-                    <td class="text-xs-left" id="headercell">{{ props.item.header }}</td>
+                  <template #item="{ item, index }">
+                    <tr>
+                      <td class="text-left">{{index+1 }}</td>
+                      <td class="text-left">{{ item.id }}</td>
+                      <td class="text-left">{{ item.mimetype }}</td>
+                      <td class="text-left">{{ item.license }}</td>
+                      <td class="text-left" id="headercell">{{ item.header }}</td>
+                    </tr>
                   </template>
-                   <v-alert slot="no-results" :value="true" color="error" icon="warning">
-                    Your search for "{{ search }}" found no results.
-                  </v-alert>
+                  <template #no-data>
+                    <v-alert type="error" icon="mdi-alert">
+                      Your search for "{{ search }}" found no results.
+                    </v-alert>
+                  </template>
                 </v-data-table>
-              </v-flex>
-            </v-layout>
+              </v-col>
+            </v-row>
           </v-card> 
         </v-card>
         
       </v-dialog>
-    </v-layout>
+    </v-row>
   </section>
 </v-card>
 </template>
@@ -231,7 +235,7 @@ import store from './../store/store';
     mounted() {
         this.loadData();
     },
-    beforeDestroy(){
+    beforeUnmount(){
       clearInterval(this.timerClearVar);
     },
     data() {
@@ -250,26 +254,26 @@ import store from './../store/store';
           archives:true,
           docs:[],
           headers:[
-            { text: '#',sortable: true, value: 'num' },
-            { text: 'Location',sortable: false, value: 'loc' },
-            { text: 'Mime Type',sortable: true, value: 'mtype' },
-            { text: 'License',sortable: true, value: 'license' },
-            { text: 'Header',sortable:false,value:'header',width:'20px'}
+            { title: '#',sortable: true, key: 'num' },
+            { title: 'Location',sortable: false, key: 'loc' },
+            { title: 'Mime Type',sortable: true, key: 'mtype' },
+            { title: 'License',sortable: true, key: 'license' },
+            { title: 'Header',sortable:false,key:'header',width:'20px'}
           ]
         },
         dialog:false,
         selectedItem:'',
           headers: [
         {
-          text: '#',
+          title: '#',
           align: 'center',
           sortable: false,
-          value: 'num'
+          key: 'num'
         },
-        { text: 'Repository',sortable: false, value: 'repository' },
-        { text: 'Name',sortable: false, value: 'name' },
-        { text: 'Description',sortable: false, value: 'description' },
-        { text: 'Audit',sortable: false, value: 'audit' },
+        { title: 'Repository',sortable: false, key: 'repository' },
+        { title: 'Name',sortable: false, key: 'name' },
+        { title: 'Description',sortable: false, key: 'description' },
+        { title: 'Audit',sortable: false, key: 'audit' },
         ],
         count:{
           numFound :0,
@@ -277,31 +281,24 @@ import store from './../store/store';
         },
 
         docs:[],
-        rowsPerPageItemsforProjects: [50,100,200,500,1000,3000,5000,{"text":"$vuetify.dataIterator.rowsPerPageAll","value":-1}]
+        rowsPerPageItemsforProjects: [
+          {title:'50',value:50},{title:'100',value:100},{title:'200',value:200},
+          {title:'500',value:500},{title:'1000',value:1000},{title:'3000',value:3000},
+          {title:'5000',value:5000},{title:'All',value:-1}
+        ]
       }
       
     },
     methods: {
-      customfilterprojects(items,search,filter){
-        if(search!=undefined){
-          search = search.toString().toLowerCase()
-          return items.filter(row=>filter(row,search))
-        }else{
-          return items;
-        }
-        
-      },
       filterProjects(inputObject,search){
-        if(inputObject.repo.toLowerCase().includes(search)){
-          return true;
-        }
-        if(inputObject.name.toLowerCase().includes(search)){
-          return true;
-        }
-        if(inputObject.description.toLowerCase().includes(search)){
-          return true;
-        }
-        return false;
+        // Guarded per field: a project with no name or no description is a
+        // real thing in the statistics core, and reading .toLowerCase() off
+        // the missing one threw for every row the search touched.
+        return ['repo','name','description'].some(field => {
+          const value = inputObject[field];
+          return value != null
+              && value.toString().toLowerCase().includes(search);
+        });
       },
       moreClicked :function(item){
         this.$log.info("as");
@@ -379,6 +376,22 @@ import store from './../store/store';
     computed: {
       origin(){
         return store.state.origin;
+      },
+      /*
+       * The rows the table is given, already filtered. Vuetify 1 was handed
+       * the whole list plus a predicate and did this itself; Vuetify 3 has no
+       * equivalent for a predicate that reads the whole row, so the same
+       * predicates run here and the table renders what it is given.
+       */
+      filteredProjects(){
+        const search = (this.projectsearch || '').toString().trim().toLowerCase();
+        if(!search){
+          return this.docs;
+        }
+        return this.docs.filter(row => this.filterProjects(row, search));
+      },
+      filteredFiles(){
+        return this.customFilterFiles(this.sortedfiles, this.search);
       },
       currentrepo(){
         return store.state.currentRepo;

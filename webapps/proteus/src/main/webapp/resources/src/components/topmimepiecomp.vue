@@ -16,23 +16,23 @@ the License.
 
   <section class="topmimepiecomp">
     <v-card id="topmimecard">
-      <v-toolbar dark color="primary">
-         <v-toolbar-title class="white--text">Top MIME Types</v-toolbar-title>
+      <v-toolbar color="primary">
+         <v-toolbar-title class="text-white">Top MIME Types</v-toolbar-title>
       </v-toolbar>
-      <v-layout>
+      <v-row>
         <v-spacer/>
-        <v-flex xs3>
+        <v-col cols="3">
           <v-btn @click="count--;if(count<0)count=0">-</v-btn>
-        </v-flex>
-        <v-flex xs3 >
+        </v-col>
+        <v-col cols="3" >
 
           <v-text-field label="Count" :value="count"></v-text-field>
-        </v-flex>
-        <v-flex xs3>
+        </v-col>
+        <v-col cols="3">
           <v-btn @click="count++;if(count>50)count=25">+</v-btn>
-        </v-flex>
+        </v-col>
         <v-spacer/>
-      </v-layout>
+      </v-row>
 
       <svg id="pietopmimesvg" width="420" height="525"></svg>
     </v-card>

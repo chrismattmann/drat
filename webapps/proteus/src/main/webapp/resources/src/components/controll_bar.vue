@@ -15,37 +15,33 @@ the License.
 <template lang="html">
   <section class="controll-bar">
     <v-card id="controllbarcard">
-      <v-layout row wrap>
-        <v-text-field
-        solo
+      <v-row>
+        <v-text-field variant="solo"
           name="url"
           label="Repository to add to DRAT"
-          single-line
+          
           v-model="url"
         />
-        <v-btn v-on:click="dialog=true" color="primary" medium> Run </v-btn>
+        <v-btn v-on:click="dialog=true" color="primary" > Run </v-btn>
         <v-dialog v-model="dialog" persistent max-width="500px">
           <v-card id="repodetailscard">
-            <v-text-field
-              solo
+            <v-text-field variant="solo"
                 name="url"
                 label="Repository to add to DRAT"
-                single-line
+                
                 v-model="url"
               />
               <hr>
-              <v-text-field
-              solo
+              <v-text-field variant="solo"
                 name="name"
                 label="Name of the repository"
-                single-line
+                
                 v-model="reponame"
               />
               
               <v-spacer/>
               <hr/>
-              <v-text-field
-              solo
+              <v-text-field variant="solo"
                 name="description"
                 label="Description about the repository"
                 
@@ -58,17 +54,18 @@ the License.
               :items="dratoptions"
               label="Action"
               required
-              dense
-              nudge-width
-              @change="$v.select.$touch()"
-              @blur="$v.select.$touch()"
+              density="compact"
             />
             <v-btn v-on:click="dialog=false">Close</v-btn>
             <v-btn v-on:click="go" color="primary">Run</v-btn>
           </v-card>  
         </v-dialog>
-      </v-layout>         
-    </v-card>   
+      </v-row>
+
+      <v-snackbar v-model="invalidInput" :timeout="6000" color="error">
+        Please enter a valid path and location, then continue
+      </v-snackbar>
+    </v-card>
   </section>
 
 </template>
@@ -94,6 +91,7 @@ the License.
     data() {
       return {
         dialog:false,
+        invalidInput:false,
         msg: 'null for now',
         url: '',
         repo:'',
@@ -121,19 +119,6 @@ the License.
           store.commit("setprogress",false);
         },
         go: function(){
-          let options = {
-              html: false, // set to true if your message contains HTML tags. eg: "Delete <b>Foo</b> ?"
-              loader: false, // set to true if you want the dailog to show a loader after click on "proceed"
-              reverse: true, // switch the button positions (left to right, and vise versa)
-              okText: 'Ok',
-              cancelText: 'Close',
-              animation: 'zoom', // Available: "zoom", "bounce", "fade"
-              type: 'basic', // coming soon: 'soft', 'hard'
-              verification: 'continue', // for hard confirm, user will be prompted to type this to enable the proceed button
-              verificationHelp: 'Type "[+:verification]" below to confirm', // Verification help text. [+:verification] will be matched with 'options.verification' (i.e 'Type "continue" below to confirm')
-              clicksCount: 3, // for soft confirm, user will be asked to click on "proceed" btn 3 times before actually proceeding
-              backdropClose: false // set to true to close the dialog when clicking outside of the dialog window, i.e. click landing on the mask 
-          };
           var action = "go";
           switch(this.selectedAction){
             case "Go":
@@ -160,13 +145,10 @@ the License.
           }
           
           if(this.url.length==0 ){
-                    this.$dialog.alert({title:"Invalid input",body:'Please enter valid path and location, then continue'},options)
-            .then(function () {
-                
-            })
-            .catch(function () {
-                
-            });
+            // Said in place of the vuejs-dialog alert, which is built against
+            // Vue 2 and has no Vue 3 release. Nothing was asked of the reader
+            // by that dialog beyond dismissing it.
+            this.invalidInput = true;
           }else{
             if(action==="reset"){
               axios.post(this.origin+"/proteus-services/drat/reset","")
