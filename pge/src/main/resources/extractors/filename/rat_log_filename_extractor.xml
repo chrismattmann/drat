@@ -22,12 +22,17 @@ the License.
      <vector name="TokenMetKeys">
     
      <!-- 
-     rat_[MimeType]_[DateMilis].log
-     ex file name: rat_x-java-source_1378339865180.log
+     rat_[MimeType]_[DateMilis]_[JobId].log
+     ex file name: rat_x-java-source_1378339865180_3419.log
+
+     One element per token in the filename. The extractor walks the
+     filename's tokens and looks each one up by position, so a token
+     with no element here is an index past the end of this list.
      -->
        <element>RatName</element>
        <element>MimeType</element>
        <element>DateMilis</element>
+       <element>JobId</element>
      </vector>
   
    </group>
