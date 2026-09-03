@@ -174,6 +174,42 @@ public class ProcessDratWrapper extends GenericProcess
   }
 
   public String getIndexablePath() {
+    /*
+     * The repository the run is actually about, taken from where it is
+     * written down before the field this process happens to hold.
+     *
+     * This returned the field alone, which is set when a run is started
+     * through Proteus and by nothing else. A run started from the command
+     * line left it null, so /drat/currentrepo answered with nothing while an
+     * audit was underway -- and the UI, which sizes the repository and draws
+     * its charts by this path, had nothing to ask about. A Tomcat restarted
+     * under a running audit had the same effect on a run Proteus did start.
+     *
+     * The marker outlives both, and the run that finished last is what the
+     * figures on screen still describe once nothing is running, so it stands
+     * in when there is no live run -- the order excludes() already uses.
+     */
+    String recorded = RunMarker.read("repo");
+    if (recorded != null && recorded.length() > 0) {
+      return recorded;
+    }
+
+    if (this.path != null && this.path.length() > 0) {
+      return this.path;
+    }
+
+    JsonObject last = RunMarker.readLast();
+    if (last != null && last.has("repo") && !last.get("repo").isJsonNull()) {
+      try {
+        String repo = last.get("repo").getAsString();
+        if (repo != null && repo.length() > 0) {
+          return repo;
+        }
+      } catch (Exception ignored) {
+        // A repo that will not read as a string is no better than none.
+      }
+    }
+
     return this.path;
   }
   
