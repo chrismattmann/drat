@@ -972,14 +972,31 @@ function redeploy {
         fi
 
         target=$DRAT_HOME/tomcat/webapps/$dir
-        backup=$target.replaced-$stamp
+        backup=$DRAT_HOME/data/webapp-backups/$dir.replaced-$stamp
 
         if [[ -d "$target" ]]; then
             # Kept rather than deleted: a webapp is where a deployment's local
             # edits end up, and this cannot tell one apart from what the build
             # produced.
+            #
+            # Kept outside webapps, though. Tomcat deploys every directory it
+            # finds in there, so a backup left beside the thing it replaces
+            # becomes another running web application -- started afresh on
+            # every boot, and never removed. A day of redeploying left
+            # twenty-six of them: 2.2GB of webapps, and a start that went from
+            # fourteen seconds to over forty before it would serve anything.
+            mkdir -p "$DRAT_HOME/data/webapp-backups" || exit 1
             mv "$target" "$backup" || exit 1
-            echo "Kept the old $dir at $(basename "$backup")"
+            echo "Kept the old $dir at data/webapp-backups/$(basename "$backup")"
+
+            # The last few are worth having; the rest are just disk. Without
+            # this they are kept for ever, which is how the pile above
+            # happened.
+            local old
+            while read -r old; do
+                [[ -n "$old" ]] && rm -rf "$old"
+            done < <(ls -1dt "$DRAT_HOME/data/webapp-backups/$dir.replaced-"* \
+                2>/dev/null | tail -n +4)
         fi
 
         mkdir -p "$target" || exit 1
