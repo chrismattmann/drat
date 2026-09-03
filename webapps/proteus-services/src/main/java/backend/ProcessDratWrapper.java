@@ -933,7 +933,13 @@ public class ProcessDratWrapper extends GenericProcess
   private synchronized void wipeInstanceRepo() {
     try {
       OodtClientPool.withWorkflowManagerClient(client -> {
-        client.clearWorkflowInstances(true);
+        // Called reflectively because clearWorkflowInstances is newer than
+        // the released OODT this builds against, so naming it directly does
+        // not compile until that release is cut. Inline the call and delete
+        // this once oodt.version has it.
+        java.lang.reflect.Method clear = client.getClass()
+            .getMethod("clearWorkflowInstances", boolean.class);
+        clear.invoke(client, true);
         return null;
       });
       LOG.info("DRAT: reset: cleared the workflow instances");
@@ -958,6 +964,14 @@ public class ProcessDratWrapper extends GenericProcess
    * </p>
    */
   private String reasonFor(Exception e) {
+    if (e instanceof java.lang.reflect.InvocationTargetException
+        && e.getCause() instanceof Exception) {
+      return reasonFor((Exception) e.getCause());
+    }
+    if (e instanceof NoSuchMethodException) {
+      return "this OODT has no clearWorkflowInstances rpc, so the manager "
+          + "cannot be asked to clear them";
+    }
     try {
       java.lang.reflect.Method detail = e.getClass().getMethod("getDetail");
       Object value = detail.invoke(e);
