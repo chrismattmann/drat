@@ -69,43 +69,73 @@ function table() {
 }
 
 describe('the licence chips filter the file table', () => {
+  it('a chip exists for every licence on the files, and for no others', () => {
+    const wrapper = table()
+    const named = wrapper.vm.licenceKinds.map(k => k.value).sort()
+    expect(named).toEqual(['Apache', 'Archives', 'Binaries', 'Standards', 'Unknown'])
+    wrapper.unmount()
+  })
+
+  /*
+   * The bug this replaces. The chips were built from the project document's
+   * license_* fields, which count a different thing from the files: for Tika
+   * that reads Standards 2645 while no file carries the value "Standards" at
+   * all, and MIT and !GPL2 -- which files do carry -- had no chip, so they
+   * were swept in under whichever chip the fallback happened to name.
+   */
+  it('every chip count is the number of rows that chip selects', async () => {
+    const wrapper = table()
+    for (const kind of wrapper.vm.licenceKinds) {
+      wrapper.vm.licencesOff = wrapper.vm.licenceKinds
+        .map(k => k.value).filter(v => v !== kind.value)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.vm.sortedfiles.length,
+        `${kind.value} says ${kind.count} but shows ${wrapper.vm.sortedfiles.length}`)
+        .toBe(kind.count)
+    }
+    wrapper.unmount()
+  })
+
+  it('the chip counts add up to the whole file list', () => {
+    const wrapper = table()
+    const total = wrapper.vm.licenceKinds.reduce((sum, k) => sum + k.count, 0)
+    expect(total).toBe(FILES.length)
+    wrapper.unmount()
+  })
+
+  it('a licence RAT reports that has no fixed category still gets a chip', async () => {
+    const wrapper = table()
+    wrapper.vm.license.files = [
+      { id: 'n.txt', license: 'MIT' },
+      { id: 'g.c', license: '!GPL2' }
+    ]
+    await wrapper.vm.$nextTick()
+
+    const named = wrapper.vm.licenceKinds.map(k => k.value).sort()
+    expect(named).toEqual(['!GPL2', 'MIT'])
+
+    wrapper.vm.toggleLicence('MIT')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.sortedfiles.map(f => f.id)).toEqual(['g.c'])
+    wrapper.unmount()
+  })
+
   it('turning one off removes only that licence', async () => {
     const wrapper = table()
-    expect(wrapper.vm.sortedfiles.length).toBe(5)
+    expect(wrapper.vm.sortedfiles.length).toBe(FILES.length)
 
-    wrapper.vm.toggleLicence('apache')
+    wrapper.vm.toggleLicence('Apache')
     await wrapper.vm.$nextTick()
 
     const licences = wrapper.vm.sortedfiles.map(f => f.license)
     expect(licences).not.toContain('Apache')
     expect(licences).toContain('Unknown')
-    expect(wrapper.vm.sortedfiles.length).toBe(4)
-    wrapper.unmount()
-  })
-
-  /*
-   * Standards used to stand in for Apache and Unknown as well, so it worked
-   * as a master switch: with it on, turning either of those off changed
-   * nothing at all.
-   */
-  it('Standards filters Standards and nothing else', async () => {
-    const wrapper = table()
-    wrapper.vm.toggleLicence('apache')
-    wrapper.vm.toggleLicence('unknown')
-    await wrapper.vm.$nextTick()
-
-    const licences = wrapper.vm.sortedfiles.map(f => f.license)
-    expect(licences, 'Standards is still showing Apache').not.toContain('Apache')
-    expect(licences, 'Standards is still showing Unknown').not.toContain('Unknown')
-    expect(licences).toContain('Standards')
     wrapper.unmount()
   })
 
   it('turning everything off shows nothing', async () => {
     const wrapper = table()
-    for (const kind of wrapper.vm.licenceKinds) {
-      wrapper.vm.license[kind.flag] = false
-    }
+    wrapper.vm.licencesOff = wrapper.vm.licenceKinds.map(k => k.value)
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.sortedfiles).toEqual([])
     wrapper.unmount()
@@ -113,26 +143,25 @@ describe('the licence chips filter the file table', () => {
 
   it('Reset puts them all back', async () => {
     const wrapper = table()
-    wrapper.vm.toggleLicence('apache')
-    wrapper.vm.toggleLicence('archives')
+    wrapper.vm.toggleLicence('Apache')
+    wrapper.vm.toggleLicence('Archives')
     await wrapper.vm.$nextTick()
-    expect(wrapper.vm.sortedfiles.length).toBe(3)
+    expect(wrapper.vm.sortedfiles.length).toBe(FILES.length - 2)
 
     wrapper.vm.resetLicenceFilters()
     await wrapper.vm.$nextTick()
-    expect(wrapper.vm.sortedfiles.length).toBe(5)
+    expect(wrapper.vm.sortedfiles.length).toBe(FILES.length)
     wrapper.unmount()
   })
 
-  it('a licence with no chip of its own still follows Standards', async () => {
+  it('opening another project clears the filters', async () => {
     const wrapper = table()
-    wrapper.vm.license.files = [{ id: 'x', license: 'SomethingElse' }]
-    await wrapper.vm.$nextTick()
-    expect(wrapper.vm.sortedfiles.length).toBe(1)
+    wrapper.vm.toggleLicence('Apache')
+    expect(wrapper.vm.licencesOff.length).toBe(1)
 
-    wrapper.vm.toggleLicence('standard')
+    wrapper.vm.moreClicked({ repo: '/repos/other', name: 'other' })
     await wrapper.vm.$nextTick()
-    expect(wrapper.vm.sortedfiles).toEqual([])
+    expect(wrapper.vm.licencesOff).toEqual([])
     wrapper.unmount()
   })
 

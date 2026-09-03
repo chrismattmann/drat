@@ -20,7 +20,7 @@ the License.
         <v-toolbar-title class="text-white">All MIME Types</v-toolbar-title>
       </v-toolbar>
 
-      <svg id="bublesvg" class="chart" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="bublesvg" class="chart"></svg>
     </v-card>
 
   </section>
@@ -66,10 +66,22 @@ the License.
             .padding(1.5);
 
 
+        /*
+         * Scaled by the viewBox rather than by a fixed pixel size. The layout
+         * is computed in a square of `diameter`, and the svg used to be set
+         * to that many pixels wide -- 860 -- which is wider than the card it
+         * sits in, so the chart ran off the page. The viewBox maps that same
+         * square onto whatever width the card actually has.
+         *
+         * classed() rather than attr("class"), which replaced the class the
+         * template sets and took the sizing rules off with it.
+         */
         var svg = d3.select("#bublesvg")
-            .attr("width", diameter)
-            .attr("height", diameter)
-            .attr("class", "bubble");
+            .attr("viewBox", "0 0 " + diameter + " " + diameter)
+            .attr("preserveAspectRatio", "xMidYMid meet")
+            .attr("width", null)
+            .attr("height", null)
+            .classed("bubble", true);
 
 
         axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&fl=mime_*&wt=json')

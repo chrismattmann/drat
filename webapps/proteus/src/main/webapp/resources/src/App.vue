@@ -397,6 +397,44 @@ export default {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * Both summary charts sit in one row and are read side by side, so they are
+ * the same height and their headings line up whatever each one contains.
+ */
+.chartcard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartbody {
+  padding: 12px 16px 16px 16px;
+  flex: 1 1 auto;
+}
+
+.chart .arc path {
+  transition: opacity 120ms ease-in-out;
+  cursor: default;
+}
+
+.chart .legend-row {
+  cursor: default;
+}
+
+.chart .legend-row-on .legend-label {
+  font-weight: 700;
+}
+
+.chart .pie-readout {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #1a1a1a;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
 .chart .chart-empty {
   font-size: 13px;
   fill: #6b7785;
