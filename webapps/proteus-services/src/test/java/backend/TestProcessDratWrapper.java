@@ -19,8 +19,11 @@ package backend;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import org.apache.oodt.cas.workflow.structs.Workflow;
 import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
+import org.apache.oodt.cas.workflow.structs.WorkflowTask;
 import backend.ProcessDratWrapper;
 import backend.RunMarker;
 import backend.FileConstants;
@@ -321,6 +324,90 @@ public class TestProcessDratWrapper extends TestCase {
     } finally {
       wrapper.setIndexablePath("");
     }
+  }
+
+  /**
+   * An instance whose current task resolves, with no state set.
+   *
+   * <p>
+   * getCurrentTask resolves through the instance's own workflow, which is
+   * how a real instance comes to have none: the manager could not resolve
+   * the model, so the lookup finds nothing.
+   * </p>
+   */
+  private static WorkflowInstance instanceRunning(String taskId, String id) {
+    WorkflowTask task = new WorkflowTask();
+    task.setTaskId(taskId);
+    task.setTaskName(taskId);
+
+    Workflow workflow = new Workflow();
+    workflow.setTasks(new ArrayList<WorkflowTask>(Arrays.asList(task)));
+
+    WorkflowInstance inst = new WorkflowInstance();
+    inst.setId(id);
+    inst.setWorkflow(workflow);
+    inst.setCurrentTaskId(taskId);
+    return inst;
+  }
+
+  /**
+   * An instance with no current task does not stop the run.
+   *
+   * <p>
+   * The workflow manager returns instances whose state and current task are
+   * both null -- the aggregate phase's redirector among them. Reading through
+   * them threw a NullPointerException out of a log statement in
+   * stillRunning, up through go(), and killed the run exactly when the maps
+   * finished: the marker was left saying "map", so the dashboard showed
+   * Mapping 50% for ever with nothing running and nothing waiting.
+   * </p>
+   */
+  public void testAnInstanceWithNoCurrentTaskIsNotFatal() {
+    WorkflowInstance nulled = new WorkflowInstance();
+    nulled.setId("no-task");
+
+    assertNull("an instance with no state has no state name",
+        ProcessDratWrapper.stateNameOf(nulled));
+    assertNull("an instance with no current task has no task name",
+        ProcessDratWrapper.taskNameOf(nulled));
+    assertNull("an instance with no current task has no task id",
+        ProcessDratWrapper.taskIdOf(nulled));
+    assertNull(ProcessDratWrapper.stateNameOf(null));
+    assertNull(ProcessDratWrapper.taskNameOf(null));
+    assertNull(ProcessDratWrapper.taskIdOf(null));
+  }
+
+  /** Filtering skips them rather than throwing on them. */
+  public void testFilteringSurvivesAnInstanceWithNoCurrentTask() {
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+
+    WorkflowInstance nulled = new WorkflowInstance();
+    nulled.setId("no-task");
+
+    WorkflowInstance real = instanceRunning(MAPPER_TASK_ID, "mapper");
+
+    List<WorkflowInstance> filtered = wrapper.filterInstances(
+        Arrays.asList(nulled, real), MAPPER_TASK_ID);
+
+    assertEquals("the real mapper should still be found", 1, filtered.size());
+    assertEquals("mapper", filtered.get(0).getId());
+  }
+
+  /**
+   * And deciding whether anything is still running survives them too, which
+   * is the call go() makes between the maps finishing and the reduce.
+   */
+  public void testStillRunningSurvivesInstancesWithNothingSet() {
+    ProcessDratWrapper wrapper = ProcessDratWrapper.getInstance();
+
+    WorkflowInstance nulled = new WorkflowInstance();
+    nulled.setId("no-task");
+
+    WorkflowInstance noState = instanceRunning(MAPPER_TASK_ID, "no-state");
+
+    assertFalse("nothing here is running, and asking must not throw",
+        wrapper.taskStillRunning(Arrays.asList(nulled, noState),
+            MAPPER_TASK_ID));
   }
 
 }

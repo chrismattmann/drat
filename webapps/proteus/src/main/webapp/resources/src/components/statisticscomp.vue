@@ -36,8 +36,7 @@ the License.
     </v-card>
   
     <v-toolbar height="50" color="primary">
-      <v-toolbar-title>Statistics</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <v-toolbar-title class="text-center">Statistics</v-toolbar-title>
     </v-toolbar>
     <hr>
     <!--
@@ -62,8 +61,16 @@ the License.
           <v-expansion-panel-text>
           <v-card>
             <v-card-text>
-                <strong>{{stat.runningRatInstances}}</strong> Rat Instances <strong>Running</strong><br>
-                <strong>{{stat.finishedRatInstances}}</strong> Rat Instances <strong> Finished</strong>
+                <!--
+                  Finished only. A RAT audit of one mime partition is over in
+                  well under the second between polls, so the running count
+                  read zero almost every time it was looked at even while the
+                  finished count climbed steadily past it. A number that is
+                  almost always zero while work is plainly happening is worse
+                  than no number.
+                -->
+                <strong>{{stat.finishedRatInstances}}</strong>
+                Rat Instances <strong>Finished</strong>
             </v-card-text>
           </v-card>
           </v-expansion-panel-text>

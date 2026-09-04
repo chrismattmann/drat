@@ -408,6 +408,16 @@ export default {
  * Both summary charts sit in one row and are read side by side, so they are
  * the same height and their headings line up whatever each one contains.
  */
+/*
+ * A centred toolbar heading. Vuetify 3 lays the title out as a flex child
+ * that grows, so text-align alone does nothing until the title itself is
+ * told to fill the bar.
+ */
+.v-toolbar-title.text-center {
+  text-align: center;
+  flex: 1 1 auto;
+}
+
 .chartcard {
   height: 100%;
   display: flex;

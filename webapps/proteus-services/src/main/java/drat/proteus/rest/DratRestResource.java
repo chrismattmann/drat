@@ -24,6 +24,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.WebApplicationException;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -55,7 +58,13 @@ public class DratRestResource {
   @POST
   @Path("/go")
   public void go(DratRequestWrapper body) throws Exception {
-    
+    // Said before anything is torn down. A path with a stray character on the
+    // end -- a comma from a paste, a trailing quote -- is not a directory, and
+    // DRAT used to accept it: reset cleared the catalog, the crawl found
+    // nothing, and the dashboard reported a running audit over a repository
+    // that does not exist until somebody noticed the counts were zero.
+    requireADirectory(body);
+
     dratWrapper.setData(body);
     dratWrapper.setIndexablePath(body.repo);
     // What not to crawl. Absent means the defaults, so a caller that says
@@ -68,6 +77,7 @@ public class DratRestResource {
   @POST
   @Path("/index")
   public void index(DratRequestWrapper body) throws Exception {
+    requireADirectory(body);
     dratWrapper.setData(body);
     dratWrapper.setIndexablePath(body.repo);
     dratWrapper.index();
@@ -76,6 +86,7 @@ public class DratRestResource {
   @POST
   @Path("/crawl")
   public void crawl(DratRequestWrapper body) throws Exception {
+    requireADirectory(body);
     dratWrapper.setData(body);
     dratWrapper.setIndexablePath(body.repo);
     dratWrapper.crawl();
@@ -170,6 +181,60 @@ public class DratRestResource {
     } catch (Exception ignored) {
       // A field that will not read as a string is not worth failing over;
       // the run itself is still reported.
+    }
+  }
+
+  /**
+   * Whether a repository could be audited, answered straight away.
+   *
+   * <p>
+   * /go does not return until the whole audit has finished, which is minutes,
+   * so it cannot be used to find out whether the request was acceptable: a
+   * caller that waits for it to answer waits for the run. This says only
+   * whether the path is there, and says it immediately, so the page can
+   * report a bad path before it commits to showing a run.
+   * </p>
+   */
+  @GET
+  @Path("/repo/valid")
+  @Produces(MediaType.TEXT_PLAIN)
+  public String repoIsValid(@QueryParam("dir") String dir) {
+    DratRequestWrapper asked = new DratRequestWrapper();
+    asked.repo = dir;
+    requireADirectory(asked);
+    return "ok";
+  }
+
+  /**
+   * Refuse a repository that is not there, and say why.
+   *
+   * <p>
+   * The check is a directory test rather than a guess at what was meant: a
+   * path that cannot be listed cannot be audited, and the reader is the one
+   * who knows what they intended to type.
+   * </p>
+   */
+  private static void requireADirectory(DratRequestWrapper body) {
+    String repo = body == null ? null : body.repo;
+    if (repo == null || repo.trim().isEmpty()) {
+      throw new WebApplicationException(Response.status(Status.BAD_REQUEST)
+          .entity("No repository was given. Enter the path to the "
+              + "directory you want audited.").type(MediaType.TEXT_PLAIN)
+          .build());
+    }
+
+    File dir = new File(repo);
+    if (!dir.isDirectory()) {
+      String hint = "";
+      if (!repo.equals(repo.trim())
+          || repo.endsWith(",") || repo.endsWith("\"") || repo.endsWith("'")) {
+        // The overwhelmingly common way this happens.
+        hint = " It ends in a stray character, which usually means it "
+            + "picked something up when it was pasted.";
+      }
+      throw new WebApplicationException(Response.status(Status.BAD_REQUEST)
+          .entity("There is no directory at '" + repo + "'." + hint)
+          .type(MediaType.TEXT_PLAIN).build());
     }
   }
 

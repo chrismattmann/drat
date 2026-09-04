@@ -145,4 +145,43 @@ public class TestRunMarker extends TestCase {
     assertTrue(excluded.contains("target"));
     assertTrue(excluded.contains(".git"));
   }
+
+  /**
+   * What a run was told not to crawl is part of the record of that run.
+   *
+   * <p>
+   * Everything that describes a run reads the exclusions from here. Without
+   * them the totals are counted over every file in the repository while the
+   * crawl skips most of them -- 16,001 against the 2,398 actually audited for
+   * Mnemosyne -- so the progress bar stops part way and the mime breakdown,
+   * which waits for the index to reach that total, never appears.
+   * </p>
+   */
+  public void testARunRecordsWhatItSkips() {
+    RunMarker.write("crawl", "proteus", "/repos/mnemosyne",
+        java.util.Arrays.asList("target", ".git"));
+
+    assertEquals(java.util.Arrays.asList("target", ".git"),
+        RunMarker.excludes());
+  }
+
+  /** They survive the phases that follow, as the repository does. */
+  public void testTheSkipsSurviveTheNextPhase() {
+    RunMarker.write("crawl", "proteus", "/repos/mnemosyne",
+        java.util.Arrays.asList("target", ".git"));
+
+    RunMarker.write("map", "proteus", null, null);
+
+    assertEquals("a later phase dropped what the run was skipping",
+        java.util.Arrays.asList("target", ".git"), RunMarker.excludes());
+    assertEquals("/repos/mnemosyne", RunMarker.read("repo"));
+  }
+
+  /** A run that skips nothing records nothing, rather than an empty list. */
+  public void testARunThatSkipsNothingSaysNothing() {
+    RunMarker.write("crawl", "cli", "/repos/mnemosyne",
+        new java.util.ArrayList<String>());
+
+    assertTrue(RunMarker.excludes().isEmpty());
+  }
 }

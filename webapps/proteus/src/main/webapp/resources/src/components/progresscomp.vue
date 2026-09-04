@@ -19,17 +19,23 @@ the License.
     <h1>Progress</h1>
     <hr>
 
+     <!--
+       Spinning, with no number on it. The four phase percentages -- crawl 0,
+       index 25, map 50, reduce 75 -- were a guess dressed as a measurement:
+       they said the same 50 for a map that had just begun and one that had
+       finished every partition, and the run that reported a single "audit"
+       phase never moved off the spinner anyway. What is happening is on the
+       line below, and it is the honest part.
+     -->
      <v-progress-circular
       id="progresscircle"
-        :rotate="-90"
         :size="100"
         :width="15"
-        :model-value="value"
-        :indeterminate="indeterminate"
+        :indeterminate="!completed"
+        :model-value="completed ? 100 : 0"
         color="primary"
-      >
-        <span v-if="!indeterminate">{{ value }}</span>
-      </v-progress-circular><br/>
+      />
+      <br/>
       {{status}}
       <div id="waitingon" v-if="waitingLabel">
         waiting on {{ waitingLabel }}
@@ -60,14 +66,12 @@ the License.
     },
     data() {
       return {
-          value:0,
           status:"IDLE",
           crawled:false,
           indexed:false,
           mapped:false,
           reduced:false,
           completed:false,
-          indeterminate:false,
           sawRunning:false,
           notRunningSeen:0,
           waiting:[],
@@ -148,27 +152,22 @@ the License.
           return;
         }
 
-        this.indeterminate = false;
         if(phase == "crawl"){
           this.status = "Crawling...";
           this.crawled = true;
           store.commit("setCurrentActionStep","CRAWL");
-          this.value = 0;
         }else if(phase == "index"){
           this.status = "Indexing...";
           this.indexed = true;
           store.commit("setCurrentActionStep","INDEX");
-          this.value = 25;
         }else if(phase == "map"){
           this.status = "Mapping...";
           this.mapped = true;
           store.commit("setCurrentActionStep","MAP");
-          this.value = 50;
         }else if(phase == "reduce"){
           this.status = "Reducing...";
           this.reduced = true;
           store.commit("setCurrentActionStep","REDUCE");
-          this.value = 75;
         }else if(phase == "reset"){
           /*
            * Before the audit there is a reset: services stopped, the catalog
@@ -177,14 +176,11 @@ the License.
            */
           this.status = "Clearing previous run...";
           store.commit("setCurrentActionStep","RESET");
-          this.indeterminate = true;
         }else if(phase == "audit"){
           this.status = "Auditing...";
           store.commit("setCurrentActionStep","AUDIT");
-          this.indeterminate = true;
         }else{
           this.status = "Running...";
-          this.indeterminate = true;
         }
       },
 
@@ -207,8 +203,6 @@ the License.
         const outcome = store.state.run ? store.state.run.lastOutcome : null;
         const finished = outcome !== 'aborted';
         this.status = finished ? "Completed" : "Stopped before finishing";
-        this.indeterminate = false;
-        this.value = finished ? 100 : 0;
         this.completed = true;
         store.commit("setCurrentActionStep","DONE");
         store.commit("setCurrentActionRequest","");

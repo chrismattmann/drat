@@ -19,20 +19,18 @@ the License.
   <section class="piechart">
     <v-card id="piecard">
     <v-toolbar height="50" color="primary">
-      <v-toolbar-title>Mime Type Breakdown</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <v-toolbar-title class="text-center">Mime Type Breakdown</v-toolbar-title>
     </v-toolbar>
-    <svg id="piesvg" width="400" height="300"></svg>
-    <svg id="pielegend"/>
+    <svg id="piesvg" class="chart"></svg>
     </v-card>
   </section>
 
 </template>
 
 <script lang="js">
-import * as d3 from 'd3';
 import axios from 'axios';
 import store from './../store/store';
+import { drawPie } from './../charts/pie';
   export default  {
     name: 'piechart',
     store,
@@ -72,77 +70,26 @@ import store from './../store/store';
       indexNotReadyYet(){
         return !store.state.indexDone;
       },
-      translateLegend(d,i){
-          var x = 0;
-          var y = 0;
-          for(var j=0;j<i;j++){
-            x += (this.data[j].type.length) * 5 + 50;
-            if(x>250){
-              x = 0;
-              y+=25;
-            }
-          }
-          return "translate("+x+"," + y + ")";
-      },
-      init(){
-        
-        var svg = d3.select("#piesvg");
-          svg.selectAll("*").remove();
-        d3.select("#pielegend").selectAll("*").remove();
-        var width = +svg.attr("width"),
-            height = +svg.attr("height"),
-            radius = Math.min(width, height) / 2,
-            g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-
-        var color = d3.scaleOrdinal(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
-
-        var pie = d3.pie()
-            .sort(null)
-            .value(function(d) { return d.weight; });
-
-        var path = d3.arc()
-            .outerRadius(radius - 10)
-            .innerRadius(0);
-
-        
-        var arc = g.selectAll(".arc")
-            .data(pie(this.data))
-            .enter().append("g")
-              .attr("class", "arc");
-
-          arc.append("path")
-              .attr("d", path)
-              .attr("style", function(d) { return "fill:"+color(d.data.type) });
-
-        var legend = d3.select("#pielegend")
-                  .attr("class", "legend")
-                  .selectAll("g")
-                  .data(pie(this.data))//setting the data as we know there are only two set of data[programmar/tester] as per the nest function you have written
-                  .enter().append("g")
-                  .attr("transform", this.translateLegend);
-
-              legend.append("rect")
-                  .attr("width", 18)
-                  .attr("height", 18)
-                  .style("fill", function(d) {
-                      return color(d.data.type);
-                    });
-
-              legend.append("text")
-                  .attr("x", 24)
-                  .attr("y", 9)
-                  .attr("dy", ".35em")
-                  .text(function(d) { return d.data.type; });
-        
-      },
+      /*
+       * Drawn by the shared helper, which lays the legend out in rows beneath
+       * the pie. This had its own placement: legend entries were positioned
+       * by adding up the character counts of the labels before them and
+       * wrapping at 250 pixels, which assumes every character is five pixels
+       * wide. Mime types are long and vary -- "application/vnd.oasis..." next
+       * to "text/plain" -- so entries ran into each other.
+       */
       loadData(){
         if(this.indexNotReadyYet()){
           return;
         }
         axios.get(this.origin+"/proteus-services/solr/drat/select?q=producttype:GenericFile&rows=0&facet=true&facet.field=mimetype&wt=json")
             .then(response=>{
-              this.data=this.buildMimeBreakdown(response.data, 5);
-              this.init();
+              this.data=this.buildMimeBreakdown(response.data, 8);
+              drawPie("#piesvg", this.data.map(d => ({key:d.type, y:d.numberOfObjects})), {
+                scheme: ["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56",
+                         "#d0743c", "#ff8c00", "#5b8c5a"],
+                emptyNote: "Nothing indexed yet"
+              });
             })
             .catch(error=>{
               

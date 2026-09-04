@@ -42,7 +42,8 @@ beforeEach(() => {
     posted.push({ url: String(url), body })
     return Promise.resolve({ data: 'ok' })
   })
-  vi.spyOn(axios, 'get').mockResolvedValue({ data: {} })
+  // /drat/repo/valid answers straight away; everything else is incidental.
+  vi.spyOn(axios, 'get').mockResolvedValue({ data: 'ok' })
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} }
   // jsdom has neither, and Vuetify's overlay reads both when a dialog opens.
   global.visualViewport = null
@@ -90,9 +91,13 @@ describe('the control bar offers Go and Reset, and nothing else', () => {
     wrapper.vm.go()
     await wrapper.vm.$nextTick()
 
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
     expect(posted.length).toBe(1)
     expect(posted[0].url).toContain('/proteus-services/drat/go')
     expect(posted[0].body.repo).toBe('/Users/somebody/git/tika')
+    // Only once the back end has accepted it.
     expect(store.state.currentRepo).toBe('/Users/somebody/git/tika')
     expect(store.state.progress).toBe(true)
     wrapper.unmount()
@@ -105,7 +110,47 @@ describe('the control bar offers Go and Reset, and nothing else', () => {
     await wrapper.vm.$nextTick()
 
     expect(posted).toEqual([])
-    expect(wrapper.vm.invalidInput).toBe(true)
+    expect(wrapper.vm.problem).toContain('path')
+    expect(store.state.progress, 'it opened the watch view anyway').toBe(false)
+    wrapper.unmount()
+  })
+
+  /*
+   * The refusal has to be shown rather than walked past.
+   *
+   * The commits used to run before the request and the failure was rethrown
+   * out of the catch, where nothing was listening -- so a repository the back
+   * end refused took the reader to a spinning ring for a run that had never
+   * started, saying nothing about why.
+   */
+  it('a repository the back end refuses does not open the watch view', async () => {
+    axios.get.mockImplementation(() => Promise.reject({
+      response: { status: 400, data: "There is no directory at '/repo,'." }
+    }))
+
+    const wrapper = bar()
+    wrapper.vm.url = '/repo,'
+    wrapper.vm.go()
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(store.state.progress, 'it opened the watch view anyway').toBe(false)
+    expect(wrapper.vm.problem).toContain('no directory')
+    expect(wrapper.vm.starting).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('says something even when the failure carries no message', async () => {
+    axios.get.mockImplementation(() => Promise.reject(new Error('Network Error')))
+
+    const wrapper = bar()
+    wrapper.vm.url = '/repo'
+    wrapper.vm.go()
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(store.state.progress).toBe(false)
+    expect(wrapper.vm.problem.length).toBeGreaterThan(0)
     wrapper.unmount()
   })
 
@@ -134,6 +179,33 @@ describe('the control bar offers Go and Reset, and nothing else', () => {
     await wrapper.vm.$nextTick()
     expect(posted.length).toBe(1)
     expect(wrapper.vm.confirmReset).toBe(false)
+    wrapper.unmount()
+  })
+
+  /*
+   * /go answers only when the audit is over, minutes later. Waiting for it
+   * left the dialog open with a spinning button for the whole run.
+   */
+  it('does not wait for the run to finish before showing it', async () => {
+    let settle
+    axios.post.mockImplementation((url, b) => {
+      posted.push({ url: String(url), body: b })
+      // As the real one behaves: it does not answer until the run ends.
+      return new Promise(resolve => { settle = resolve })
+    })
+
+    const wrapper = bar()
+    wrapper.vm.url = '/repos/mnemosyne'
+    wrapper.vm.go()
+    await new Promise(r => setTimeout(r, 0))
+    await wrapper.vm.$nextTick()
+
+    expect(posted.length, 'the run was never started').toBe(1)
+    expect(store.state.progress, 'the watch view never opened').toBe(true)
+    expect(wrapper.vm.dialog, 'the dialog stayed open').toBe(false)
+    expect(wrapper.vm.starting, 'the button is still spinning').toBe(false)
+
+    settle({ data: 'done' })
     wrapper.unmount()
   })
 })
