@@ -102,21 +102,60 @@ export function drawPie(selector, data, options) {
     .attr('dy', '0.35em')
     .style('opacity', 0)
 
-  function highlight(key) {
+  /*
+   * A slice can be pointed at or held.
+   *
+   * Pointing at one is momentary and goes when the pointer does, which is no
+   * use for reading a figure and then looking somewhere else -- at the table
+   * beneath it, at another chart. Clicking holds it, and clicking it again,
+   * or clicking away, lets it go.
+   */
+  let pinned = null
+
+  function show(key) {
     arc.selectAll('path')
       .style('opacity', d => (key === null || d.data.key === key) ? 1 : 0.35)
+      .classed('slice-on', d => key !== null && d.data.key === key)
     svg.selectAll('.legend-row')
       .classed('legend-row-on', d => key !== null && d.data.key === key)
+
+    if (key === null) {
+      readout.style('opacity', 0)
+      return
+    }
+    const held = slices.find(d => d.data.key === key)
+    readout.text(`${key} · ${held.data.y} (${percent(held.data.y, total)})`)
+      .style('opacity', 1)
   }
 
-  arc.on('mouseenter', function (event, d) {
-    highlight(d.data.key)
-    readout.text(`${d.data.key} · ${d.data.y} (${percent(d.data.y, total)})`)
-      .style('opacity', 1)
-  }).on('mouseleave', function () {
-    highlight(null)
-    readout.style('opacity', 0)
-  })
+  function pointAt(key) {
+    if (pinned === null) {
+      show(key)
+    }
+  }
+
+  function release() {
+    show(pinned)
+  }
+
+  function hold(key) {
+    pinned = (pinned === key) ? null : key
+    show(pinned)
+    if (typeof settings.onSelect === 'function') {
+      settings.onSelect(pinned)
+    }
+  }
+
+  arc.style('cursor', 'pointer')
+    .on('mouseenter', (event, d) => pointAt(d.data.key))
+    .on('mouseleave', release)
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      hold(d.data.key)
+    })
+
+  // Clicking the chart but not a slice lets go of whatever was held.
+  svg.on('click', () => hold(null))
 
   arc.append('title')
     .text(d => `${d.data.key}: ${d.data.y} (${percent(d.data.y, total)})`)
@@ -138,14 +177,12 @@ export function drawPie(selector, data, options) {
     .append('g')
     .attr('class', 'legend-row')
     .attr('transform', (d, i) => `translate(0,${i * LEGEND_ROW})`)
-    .on('mouseenter', (event, d) => {
-      highlight(d.data.key)
-      readout.text(`${d.data.key} · ${d.data.y} (${percent(d.data.y, total)})`)
-        .style('opacity', 1)
-    })
-    .on('mouseleave', () => {
-      highlight(null)
-      readout.style('opacity', 0)
+    .style('cursor', 'pointer')
+    .on('mouseenter', (event, d) => pointAt(d.data.key))
+    .on('mouseleave', release)
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      hold(d.data.key)
     })
 
   legend.append('rect')

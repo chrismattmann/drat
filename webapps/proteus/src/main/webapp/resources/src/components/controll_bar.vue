@@ -56,8 +56,8 @@ the License.
               />
               <hr/>
 
-            <v-btn v-on:click="dialog=false">Close</v-btn>
-            <v-btn v-on:click="go" color="primary">Go</v-btn>
+            <v-btn v-on:click="dialog=false" :disabled="starting">Close</v-btn>
+            <v-btn v-on:click="go" color="primary" :loading="starting">Go</v-btn>
           </v-card>
         </v-dialog>
 
@@ -84,8 +84,8 @@ the License.
         </v-dialog>
       </v-row>
 
-      <v-snackbar v-model="invalidInput" :timeout="6000" color="error">
-        Please enter a valid path and location, then continue
+      <v-snackbar v-model="hasProblem" :timeout="8000" color="error">
+        {{ problem }}
       </v-snackbar>
     </v-card>
   </section>
@@ -114,7 +114,8 @@ the License.
       return {
         dialog:false,
         confirmReset:false,
-        invalidInput:false,
+        starting:false,
+        problem:'',
         msg: 'null for now',
         url: '',
         repo:'',
@@ -147,17 +148,9 @@ the License.
          */
         go: function(){
           if(this.url.length==0){
-            // Said in place of the vuejs-dialog alert, which is built against
-            // Vue 2 and has no Vue 3 release. Nothing was asked of the reader
-            // by that dialog beyond dismissing it.
-            this.invalidInput = true;
+            this.problem = "Enter the path to the directory you want audited.";
             return;
           }
-
-          store.commit("setCurrentActionRequest","GO");
-          store.commit("setprogress",true);
-          store.commit("setCurrentRepo",this.url);
-          this.dialog = false;
 
           var body = {
             id:this.repoloc,
@@ -166,13 +159,60 @@ the License.
             loc_url:this.repoloc,
             description:this.repodesc
           };
-          axios.post(this.origin+"/proteus-services/drat/go",body)
-          .then(response=>{
-            this.$log.info(response.data);
+
+          /*
+           * Asked first, and answered straight away.
+           *
+           * /go does not return until the whole audit has finished, so it
+           * cannot be waited on to find out whether the request was any good:
+           * doing that left the dialog open with a spinning button for the
+           * length of the run. Committing first instead took the reader to a
+           * spinning progress ring for a run the back end had refused, and
+           * said nothing about why. So the question -- is this a repository
+           * I can audit -- is asked on its own, and only once it is answered
+           * does the run start and the view change.
+           */
+          this.starting = true;
+          axios.get(this.origin + "/proteus-services/drat/repo/valid?dir="
+              + encodeURIComponent(this.url))
+          .then(()=>{
+            this.starting = false;
+            store.commit("setCurrentActionRequest","GO");
+            store.commit("setprogress",true);
+            store.commit("setCurrentRepo",this.url);
+            this.dialog = false;
+
+            /*
+             * Started and not waited for. The response comes when the audit
+             * is over; what happens in between is reported by the run itself,
+             * which the watch view is already following.
+             */
+            axios.post(this.origin+"/proteus-services/drat/go",body)
+            .then(response=>{
+              this.$log.info(response.data);
+            })
+            .catch(error=>{
+              // A run that fails after it started is the watch view's story
+              // to tell, not this dialog's -- it is no longer on screen.
+              this.$log.error(this.reasonFrom(error));
+            })
           })
           .catch(error=>{
-            throw error;
+            this.starting = false;
+            this.problem = this.reasonFrom(error);
           })
+        },
+
+        /* What the back end said, or the best available account of it. */
+        reasonFrom: function(error){
+          var said = error && error.response && error.response.data;
+          if (typeof said === "string" && said.trim().length > 0) {
+            return said.trim();
+          }
+          if (error && error.message) {
+            return "DRAT could not start the run: " + error.message;
+          }
+          return "DRAT could not start the run.";
         },
 
         /*
@@ -187,12 +227,26 @@ the License.
             this.$log.info(response.data);
           })
           .catch(error=>{
-            this.$log.error(error.toString());
+            this.problem = this.reasonFrom(error);
           })
         }
 
     },
     computed: {
+        /*
+         * The snackbar shows while there is something to say, and clearing it
+         * clears the message rather than leaving it to reappear.
+         */
+        hasProblem: {
+          get(){
+            return this.problem.length > 0;
+          },
+          set(showing){
+            if(!showing){
+              this.problem = '';
+            }
+          }
+        },
         currentRepo (){
           return store.state.currentRepo;
         },

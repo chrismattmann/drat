@@ -17,13 +17,17 @@ the License.
   <section class="barchartcomp">
     <v-card id = "barchart">
     <v-toolbar height="50" color="primary">
-      <v-toolbar-title>License Breakdown</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <v-toolbar-title class="text-center">License Breakdown</v-toolbar-title>
     </v-toolbar>
-   
-    <svg id="barsvg" width="400" height="270">
-     
-    </svg>
+
+    <!--
+      Said out loud when there is nothing to draw. This was set in four places
+      and rendered in none, so a card with no data showed an empty svg: a
+      heading, a blank rectangle, and no indication whether the audit had
+      found nothing, had not got there yet, or had failed.
+    -->
+    <div id="barempty" v-if="emptynote">{{ emptynote }}</div>
+    <svg id="barsvg" width="400" height="270" v-show="!emptynote"></svg>
     
     </v-card>
   </section>
@@ -77,6 +81,7 @@ import store from './../store/store'
       },
         loadData(){
         if(this.nothingAuditedYet()){
+          this.emptynote = "No audit has finished yet";
           return;
         }
           if(this.currentRepo=='')return;
@@ -159,7 +164,7 @@ import store from './../store/store'
         },
         init(){
           var  svg = d3.select("#barsvg"),
-              margin = {top: 20, right: 20, bottom: 50, left: 40},
+              margin = {top: 32, right: 20, bottom: 50, left: 40},
               width = +svg.attr("width") - margin.left - margin.right,
               height = +svg.attr("height") - margin.top - margin.bottom;
 
@@ -203,18 +208,55 @@ import store from './../store/store'
                 .text("Frequency");
             
 
-            g.selectAll(".bar") 
+            /*
+             * A readout above the bars rather than a browser tooltip, which
+             * arrives a second late and goes as soon as the pointer moves.
+             * The bar carried no figure at all: its height was a proportion
+             * of an axis in percent, so reading one meant measuring it by
+             * eye against the ticks.
+             */
+            var readout = g.append("text")
+                .attr("class", "bar-readout")
+                .attr("x", width / 2)
+                .attr("y", -6)
+                .attr("text-anchor", "middle")
+                .style("opacity", 0);
+
+            var counts = this.licenseTypes;
+
+            g.selectAll(".bar")
                 .data(dataval)
-              .enter()                 
+              .enter()
                 .append("rect")
                 .attr("class", "bar")
                 .attr("x", function(d) { return x(d.letter); })
                 .attr("y", function(d) { return y(d.frequency); })
                 .attr("width", x.bandwidth())
-                .attr("height", function(d) { return height - y(d.frequency); });
+                .attr("height", function(d) { return height - y(d.frequency); })
+                .on("mouseenter", function(event, d) {
+                  var found = counts.filter(function(c){ return c.type === d.letter; })[0];
+                  var howMany = found ? found.numberOfObjects : null;
+                  readout
+                    .text(d.letter + " \u00b7 "
+                        + (howMany === null ? "" : howMany + " files, ")
+                        + (d.frequency * 100).toFixed(1) + "%")
+                    .style("opacity", 1);
+                })
+                .on("mouseleave", function() {
+                  readout.style("opacity", 0);
+                })
+              .append("title")
+                .text(function(d) {
+                  return d.letter + ": " + (d.frequency * 100).toFixed(1) + "%";
+                });
 
           }else{
-            this.emptynote = "Retrieving Data...";
+            // Which of the two it is, rather than "Retrieving Data..." for
+            // both: a run that has audited nothing yet is not the same as a
+            // finished run whose licences could not be read.
+            this.emptynote = this.nothingAuditedYet()
+                ? "No audit has finished yet"
+                : "No licence data for this repository yet";
           }
           
         },
@@ -244,12 +286,29 @@ import store from './../store/store'
 </script>
 
 <style>
+.bar-readout {
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: #22303c;
+}
+
+#barempty {
+  padding: 34px 16px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
 .bar {
   fill: steelblue;
 }
 
+.bar {
+  cursor: default;
+  transition: fill 120ms ease-in-out;
+}
+
 .bar:hover {
-  fill: brown;
+  fill: #b1541f;
 }
 
 

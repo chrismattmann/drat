@@ -75,6 +75,25 @@ public class RunMarker {
    */
   public static synchronized void write(String phase, String startedBy,
       String repo) {
+    write(phase, startedBy, repo, null);
+  }
+
+  /**
+   * Record a run, including what it was told not to crawl.
+   *
+   * <p>
+   * The exclusions belong in the marker because everything that describes the
+   * run reads them from there. Without them a run's totals are counted over
+   * every file in the repository while the crawl skips most of them: for
+   * Mnemosyne that is 16,001 against the 2,398 actually audited, so the
+   * progress bar stops at fifteen percent, and the mime breakdown -- which is
+   * shown only once the index has caught up with that total -- never appears
+   * at all. bin/drat has always written them; a run started from Proteus
+   * recorded none, so only that path was wrong.
+   * </p>
+   */
+  public static synchronized void write(String phase, String startedBy,
+      String repo, java.util.List<String> excludes) {
     JsonObject marker = new JsonObject();
     marker.addProperty("phase", phase);
     marker.addProperty("startedBy", startedBy);
@@ -85,6 +104,27 @@ public class RunMarker {
       String previous = read("repo");
       if (previous != null) {
         marker.addProperty("repo", previous);
+      }
+    }
+
+    /*
+     * Carried across phases like the repository is: the exclusions are named
+     * when a run starts, and every phase after that would otherwise record a
+     * run that excluded nothing.
+     */
+    java.util.List<String> skipping = excludes;
+    if (skipping == null) {
+      skipping = excludes();
+    }
+    if (skipping != null && !skipping.isEmpty()) {
+      JsonArray listed = new JsonArray();
+      for (String name : skipping) {
+        if (name != null && name.length() > 0) {
+          listed.add(name);
+        }
+      }
+      if (listed.size() > 0) {
+        marker.add("excludes", listed);
       }
     }
     FileWriter writer = null;

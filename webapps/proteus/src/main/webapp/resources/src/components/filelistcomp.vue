@@ -17,9 +17,13 @@ the License.
 
   <section class="filelistcomp" >
     <v-card id="filelistcard">
+    <!--
+      Centred. A v-toolbar-title is left aligned and a trailing v-spacer does
+      not move it, so the heading sat against the left edge of a pane whose
+      contents are centred, and read as though it belonged to something else.
+    -->
     <v-toolbar height="50" color="primary">
-      <v-toolbar-title>Files List</v-toolbar-title>
-       <v-spacer></v-spacer>
+      <v-toolbar-title class="text-center">Files List</v-toolbar-title>
     </v-toolbar>
     <strong v-if="fileslist.length==0">Empty List of files</strong>
     <v-list >

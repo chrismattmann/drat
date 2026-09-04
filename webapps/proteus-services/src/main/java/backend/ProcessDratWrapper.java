@@ -244,7 +244,7 @@ public class ProcessDratWrapper extends GenericProcess
     if (STATUS_IDLE.equals(status)) {
       RunMarker.clear();
     } else {
-      RunMarker.write(status, "proteus", this.path);
+      RunMarker.write(status, "proteus", this.path, getExcludes());
     }
   }
 
@@ -558,9 +558,21 @@ public class ProcessDratWrapper extends GenericProcess
           }
         }
        
+        /*
+         * An instance need not have a current task or a state.
+         *
+         * The workflow manager returns some with both null -- the aggregate
+         * phase's redirector among them, which it cannot resolve a model for
+         * and logs as "workflow is null". Reading through them here threw a
+         * NullPointerException out of a log statement, up through go(), and
+         * killed the run at the moment the maps finished: the marker was
+         * left saying "map" and the dashboard sat at Mapping 50% for ever
+         * with nothing running. A line of logging is not worth a run.
+         */
         for(WorkflowInstance instance : workflowInstances){
-          LOG.info("Running Instances : id: "+instance.getId()
-                  +" state name "+instance.getState().getName()+" current task name : "+instance.getCurrentTask().getTaskName());
+          LOG.info("Running Instances : id: " + instance.getId()
+              + " state name " + stateNameOf(instance)
+              + " current task name : " + taskNameOf(instance));
         }
         
         workflowRunLog.logInfo("Completed.", null);
@@ -617,8 +629,11 @@ public class ProcessDratWrapper extends GenericProcess
         List<WorkflowInstance> insts = filterInstances(instances, taskId);
         LOG.info("Checking task: "+taskId+" : inspecting ["+String.valueOf(instances.size())+"] tasks.");
         for(WorkflowInstance i: insts) {
-         if(isRunning(i.getState().getName())) {
-           LOG.info("Task: [" + i.getId() + "] still running.");     
+         // An instance with no state is not one that can be said to be
+         // running, and asking it throws.
+         String stateName = stateNameOf(i);
+         if(stateName != null && isRunning(stateName)) {
+           LOG.info("Task: [" + i.getId() + "] still running.");
            return true;
          }
         }
@@ -628,16 +643,58 @@ public class ProcessDratWrapper extends GenericProcess
     return false;
   }
   
+  /**
+   * The name of an instance's state, or null when it has none.
+   *
+   * <p>
+   * The workflow manager hands back instances whose state or current task is
+   * null -- a redirector whose model it could not resolve, an instance caught
+   * between states. Every reader here used to assume otherwise.
+   * </p>
+   */
+  @VisibleForTesting
+  static String stateNameOf(WorkflowInstance instance) {
+    if (instance == null || instance.getState() == null) {
+      return null;
+    }
+    return instance.getState().getName();
+  }
+
+  /** The name of an instance's current task, or null when it has none. */
+  @VisibleForTesting
+  static String taskNameOf(WorkflowInstance instance) {
+    if (instance == null || instance.getCurrentTask() == null) {
+      return null;
+    }
+    return instance.getCurrentTask().getTaskName();
+  }
+
+  /** The id of an instance's current task, or null when it has none. */
+  @VisibleForTesting
+  static String taskIdOf(WorkflowInstance instance) {
+    if (instance == null || instance.getCurrentTask() == null) {
+      return null;
+    }
+    return instance.getCurrentTask().getTaskId();
+  }
+
   @VisibleForTesting 
   protected List<WorkflowInstance> filterInstances(List<WorkflowInstance> instances, String taskId){
     List<WorkflowInstance> insts = new ArrayList<>();
     if(instances!=null && instances.size()>0){
         for(WorkflowInstance instance:instances){
-            if(instance.getCurrentTask().getTaskId().equals(taskId)){
-                LOG.info("Adding "+taskId+" instance: [" + instance.getCurrentTask().getTaskId() + "]");
+            // Same null current task as above. An instance without one is not
+            // the task being asked about, so it is skipped rather than
+            // throwing while deciding.
+            String currentTaskId = taskIdOf(instance);
+            if(currentTaskId == null){
+                LOG.info("Skipping an instance with no current task: ["
+                    + (instance == null ? "null" : instance.getId()) + "]");
+            }else if(currentTaskId.equals(taskId)){
+                LOG.info("Adding "+taskId+" instance: [" + currentTaskId + "]");
                 insts.add(instance);
             }else{
-                LOG.info("Filtering task: [" + instance.getCurrentTask().getTaskId() + "]");
+                LOG.info("Filtering task: [" + currentTaskId + "]");
             }
         }
     }
