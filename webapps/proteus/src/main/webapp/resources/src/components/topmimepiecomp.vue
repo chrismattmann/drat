@@ -15,7 +15,7 @@ the License.
 <template lang="html">
 
   <section class="topmimepiecomp">
-    <v-card id="topmimecard">
+    <v-card id="topmimecard" class="chartcard">
       <v-toolbar color="primary">
          <v-toolbar-title class="text-white">Top MIME Types</v-toolbar-title>
       </v-toolbar>
@@ -34,10 +34,12 @@ the License.
           <span class="count-caption">types</span>
         </span>
         <v-btn size="small" variant="tonal" aria-label="Show more types"
-          :disabled="count >= 25" @click="more">+</v-btn>
+          :disabled="count >= MAX_TYPES" @click="more">+</v-btn>
       </div>
 
-      <svg id="pietopmimesvg" class="chart"></svg>
+      <div class="chartbody">
+        <svg id="pietopmimesvg" class="chart"></svg>
+      </div>
     </v-card>
   </section>
 
@@ -64,6 +66,12 @@ the License.
     data() {
       return {
         count:10,
+        /*
+         * Capped. Each type adds a legend row, and the card grows by one row
+         * with it, so an unbounded count grows the card down the page without
+         * limit -- and the slices past this are too thin to read anyway.
+         */
+        MAX_TYPES:15,
       }
     },
     methods: {
@@ -75,7 +83,7 @@ the License.
           if(this.count > 1) this.count--;
         },
         more(){
-          if(this.count < 25) this.count++;
+          if(this.count < this.MAX_TYPES) this.count++;
         },
         init(rows){
           axios.get(this.origin + '/proteus-services/solr/statistics/select?q=type:software&fl=mime_*&wt=json')
@@ -144,7 +152,7 @@ the License.
 
 <style scoped>
   #topmimecard {
-    padding: 16px;
+    padding: 0;
   }
 
   .count-control {

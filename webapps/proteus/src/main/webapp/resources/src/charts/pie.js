@@ -91,6 +91,33 @@ export function drawPie(selector, data, options) {
     .attr('d', path)
     .attr('style', d => `fill:${colour(d.data.key)}`)
 
+  /*
+   * Hover. A slice and its legend row light up together and the reading
+   * appears in the middle of the pie, so the answer is where the pointer
+   * already is rather than in a browser tooltip a second later.
+   */
+  const readout = g.append('text')
+    .attr('class', 'pie-readout')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '0.35em')
+    .style('opacity', 0)
+
+  function highlight(key) {
+    arc.selectAll('path')
+      .style('opacity', d => (key === null || d.data.key === key) ? 1 : 0.35)
+    svg.selectAll('.legend-row')
+      .classed('legend-row-on', d => key !== null && d.data.key === key)
+  }
+
+  arc.on('mouseenter', function (event, d) {
+    highlight(d.data.key)
+    readout.text(`${d.data.key} · ${d.data.y} (${percent(d.data.y, total)})`)
+      .style('opacity', 1)
+  }).on('mouseleave', function () {
+    highlight(null)
+    readout.style('opacity', 0)
+  })
+
   arc.append('title')
     .text(d => `${d.data.key}: ${d.data.y} (${percent(d.data.y, total)})`)
 
@@ -109,7 +136,17 @@ export function drawPie(selector, data, options) {
     .attr('transform', `translate(14,${pieHeight + 6})`)
     .selectAll('g').data(slices).enter()
     .append('g')
+    .attr('class', 'legend-row')
     .attr('transform', (d, i) => `translate(0,${i * LEGEND_ROW})`)
+    .on('mouseenter', (event, d) => {
+      highlight(d.data.key)
+      readout.text(`${d.data.key} · ${d.data.y} (${percent(d.data.y, total)})`)
+        .style('opacity', 1)
+    })
+    .on('mouseleave', () => {
+      highlight(null)
+      readout.style('opacity', 0)
+    })
 
   legend.append('rect')
     .attr('width', LEGEND_SWATCH)
