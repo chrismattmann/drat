@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-    # The landing page is hand-maintained on the asf-site branch. Only
+    # The landing page is hand-maintained on the gh-pages branch. Only
     # regenerate when something that feeds the published API docs changes.
     paths:
       - '**/src/main/java/**'
@@ -64,7 +64,7 @@ jobs:
       - name: Check out the site branch
         uses: actions/checkout@v4
         with:
-          ref: asf-site
+          ref: gh-pages
           path: site
 
       - name: Stage the docs into the site
@@ -88,4 +88,4 @@ jobs:
             exit 0
           fi
           git commit -m "Publish API docs from ${GITHUB_SHA::8}"
-          git push origin asf-site
+          git push origin gh-pages
