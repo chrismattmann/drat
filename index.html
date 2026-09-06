@@ -1,309 +1,208 @@
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>DRAT</title>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DRAT — Distributed Release Audit Tool</title>
+  <link rel="icon" type="image/svg+xml" href="assets/drat-mark.svg"/>
+  <link rel="icon" type="image/png" href="assets/favicon.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap"/>
+  <link rel="stylesheet" href="css/site.css"/>
+</head>
+<body>
+  <nav>
+    <a class="nav-brand" href="#top">
+      <img src="assets/drat-mark.svg" width="28" height="28" alt=""/>
+      DRAT
+    </a>
+    <div class="nav-links">
+      <a href="#audit">Audit</a>
+      <a href="#unknowns">Unknowns</a>
+      <a href="#how">How</a>
+      <a href="#proteus">Proteus</a>
+      <a href="https://github.com/chrismattmann/drat/wiki/How-to-Run">Docs</a>
+      <a href="https://github.com/chrismattmann/drat">GitHub</a>
+    </div>
+  </nav>
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="css/custom.css?v=pmc"/>
-    <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
-    <link rel="stylesheet" href="css/font-awesome.min.css">
-  </head>
-  <body>
-    <header>
-      <div class="container-fluid">
-
-        <div class="row">
-          <div class="col-sm-12">
-            <ul class="nav justify-content-end">
-              <li class="nav-item">
-                <a class="nav-link active" href="#problem">The Problem</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#drat">DRAT</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#resources">Resources</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#contributors">Contributors</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="row  align-items-center">
-          <div class="offset-md-1 col-md-5">
-            <img src="img/header.png" width="100%">
-          </div>
-          <div class="offset-md-1 col-md-5 white-text ">
-            <h1 class="drat">DRAT</h1>
-            <p>An unobstructive, scalable approach<br/>
-              to large scale Software License Analysis
-          </div>
-        </div>
-
-       </div> 
-
-   </header>
-
-  <div class="row">
-
-    <section id="problem" class="container section-space">
-      <div class="row align-items-center">
-        <div class="col-md-12 breathing-space">
-          <h2>THE PROBLEM</h2>
-          <hr/>
-        </div>
-        <div class="col-md-4">
-          <img src="img/the-problem.png" />
-        </div>
-        <div class="col-md-8">
-          <div class="row breathing-space">
-            <div class="col-sm-1">
-              <img src="img/icon-1.png"/>
-            </div>
-            <div class="offset-md-1 col-sm-10">
-              <h4>INCREASING OPEN SOURCE PROJECTS</h4>
-              <p class="grey-text">With increasing number of open source projects across many domains, the license of open source software becomes critical to grant everyone legally appropriate permission to freely use, modify and distribute open source software.</p>
-            </div>
-          </div>
-          <div class="row breathing-space">
-            <div class="col-sm-1">
-              <img src="img/icon-2.png"/>
-            </div>
-            <div class="offset-md-1 col-sm-10">
-              <h4>INCREASING LICENSE ISSUERS</h4>
-              <p class="grey-text">With more than 60 licenses such as Berkeley Software Distribution(BSD), MIT License, the Apache License, and so on, approved by, Open Source Initiative (OSI) for complying with open source definition, there exists differences among them.</p>
-            </div>
-          </div>
-          <div class="row breathing-space">
-            <div class="col-sm-1">
-              <img src="img/icon-3.png"/>
-            </div>
-            <div class="offset-md-1 col-sm-10">
-              <h4>NEED FOR AUTOMATED VERIFICATION</h4>
-              <p class="grey-text">With increasing number of open source projects across many domains, the license of open source software becomes critical to grant everyone legally appropriate permission to freely use, modify and distribute open source software.</p>
-            </div>
-          </div>
-        </div>
+  <header class="wrap hero" id="top">
+    <div>
+      <p class="kicker">Mnemosyne · Apache RAT · Tika · Solr</p>
+      <h1>Point it at a tree.<br/>Get a license report.</h1>
+      <p class="lede">
+        RAT on one JVM is too slow and prints nothing until it finishes.
+        DRAT splits the tree by MIME type, runs RAT on chunks, and reduces
+        the logs into one audit — while you watch.
+      </p>
+      <pre class="cmd"><span>$</span> bin/drat go ~/src/northwind-sdk</pre>
+      <div class="hero-actions">
+        <a class="btn" href="https://github.com/chrismattmann/drat/wiki/How-to-Run">How to run</a>
+        <a class="btn ghost" href="https://github.com/chrismattmann/drat">Source</a>
       </div>
-     </section>
-     
-     <section id="drat" class="container-fluid alternate-lightbg section-space">
-       <div class="container text-center ">
-          <h2 class="col-sm-12 breathing-space">WHAT IS DRAT?</h2>
-          <hr/>
-          <p class="col-sm-12 breathing-space">
-	  A distributed parallelized ( Map Reduce) wrapper around <a href="https://creadur.apache.org/rat/">APACHE RAT<sup>TM</sup> (Release Audit Tool)</a> that <br/> goes far beyond RAT<sup>TM</sup> by leveraging <a href="http://oodt.apache.org/">Apache OODT<sup>TM</sup></a> to dramatically speed up the process.
-          </p>
-          <div class="row">
-            <div class="col-md-3 breathing-space">
-              <i class="fa fa-file-code-o fa-3x fa-color" aria-hidden="true"></i>
-              <h4>Scales to large code bases</h4>
-	      <p>DRAT is a Map Reduce version of RAT using <a href="http://tika.apache.org/">Apache Tika</a> to automatically sort and classify the code base files</p>
-            </div>
-            <div class="offset-md-1 col-md-3 breathing-space">
-              <i class="fa fa-object-group fa-3x fa-color" aria-hidden="true"></i>
-              <h4>Mapreduce for the win!</h4>
-	      <p>DRAT uses <a href="http://oodt.apache.org/">Apache OODT</a> to index metadata and Tika information about those code files into <a href="https://lucene.apache.org/solr/">Apache Solr</a> and OODT to produce a Map Reduce workflow</p>
-            </div>
-            <div class="offset-md-1 col-md-3 breathing-space">
-              <i class="fa fa-tasks fa-3x fa-color" aria-hidden="true"></i>
-              <h4>Incremental output</h4>
-              <p>DRAT runs RAT incrementally on k-sized chunks of same-MIME-typed files (detected by Tika) and then producing incremental, per type logs, and then aggregating and reducing them into a combined log at the end.</p>
-            </div>
-          </div>
-       </div>
-     </section> 
+    </div>
+    <div class="files" aria-hidden="true">
+      <article class="file ok"><code>src/core/Engine.java</code><div class="meta"><span class="lic">Apache-2.0</span><span class="mime">text/x-java</span></div></article>
+      <article class="file ok"><code>src/cli/Main.java</code><div class="meta"><span class="lic">Apache-2.0</span><span class="mime">text/x-java</span></div></article>
+      <article class="file ok"><code>lib/vendor/once.js</code><div class="meta"><span class="lic">MIT</span><span class="mime">application/javascript</span></div></article>
+      <article class="file unk"><code>src/legacy/Util.java</code><div class="meta"><span class="lic">UNKNOWN</span><span class="mime">text/x-java</span></div></article>
+      <article class="file ok"><code>scripts/etl.py</code><div class="meta"><span class="lic">Apache-2.0</span><span class="mime">text/x-python</span></div></article>
+      <article class="file ok"><code>docs/README.md</code><div class="meta"><span class="lic">Apache-2.0</span><span class="mime">text/markdown</span></div></article>
+      <article class="file bin"><code>assets/mark.png</code><div class="meta"><span class="lic">BINARY</span><span class="mime">image/png</span></div></article>
+      <article class="file unk"><code>vendor/shim.c</code><div class="meta"><span class="lic">UNKNOWN</span><span class="mime">text/x-csrc</span></div></article>
+    </div>
+  </header>
 
-     <section id="resources" class="container-fluid section-space">
-        <div class="container">
-          <h2 class="col-sm-12 breathing-space">RESOURCES</h2>
-          <hr/>
+  <section class="wrap section" id="audit">
+    <p class="kicker">A demo audit</p>
+    <h2>Invented tree. Real product.</h2>
+    <p>
+      Nothing here is from a live repository. The listing is what a reduce
+      looks like after <code>drat go</code>: licenses from RAT, MIME types from Tika,
+      CSV under <code>data/archive/rataggregate/</code>.
+    </p>
+    <div class="report">
+      <h3>northwind-sdk</h3>
+      <p class="meta">1,062 files · crawl → index → map → reduce</p>
+      <div class="bar-row"><span>Apache-2.0</span><div class="bar"><i style="width:70%"></i></div><span>748</span></div>
+      <div class="bar-row"><span>MIT</span><div class="bar"><i class="mit" style="width:18%"></i></div><span>188</span></div>
+      <div class="bar-row"><span>BSD-3</span><div class="bar"><i class="bsd" style="width:9%"></i></div><span>91</span></div>
+      <div class="bar-row"><span>Unknown</span><div class="bar"><i class="unk" style="width:3%"></i></div><span>33</span></div>
+      <div class="bar-row"><span>Binaries</span><div class="bar"><i class="bin" style="width:1%"></i></div><span>2</span></div>
+      <div class="chips">
+        <span class="chip">text/x-java <em>412</em></span>
+        <span class="chip">text/x-python <em>280</em></span>
+        <span class="chip">application/javascript <em>188</em></span>
+        <span class="chip">application/xml <em>91</em></span>
+        <span class="chip">text/markdown <em>64</em></span>
+        <span class="chip">text/plain <em>27</em></span>
+      </div>
+      <div class="bubbles" aria-hidden="true">
+        <div class="bubble xl">412<span>java</span></div>
+        <div class="bubble l">280<span>python</span></div>
+        <div class="bubble m">188<span>js</span></div>
+        <div class="bubble m">91<span>xml</span></div>
+        <div class="bubble s">64<span>md</span></div>
+        <div class="bubble s">27<span>txt</span></div>
+      </div>
+    </div>
+  </section>
 
-          <div class="row breathing-space">
+  <section class="wrap section" id="unknowns">
+    <p class="kicker">The files that matter</p>
+    <h2>RAT is for the ones it cannot stamp.</h2>
+    <p>
+      The 748 Apache headers are not the story. The 33 unknowns are.
+      The report exists so a human can open those files and put a header on them.
+    </p>
+    <div class="pair">
+      <figure>
+        <img src="assets/unknown.jpg" alt="Printed source with a blank header"/>
+        <figcaption>No header. Coffee ring. This is an unknown.</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/stamped.jpg" alt="Source listing that begins with an Apache 2.0 license header"/>
+        <figcaption>Header present. RAT stamps it and moves on.</figcaption>
+      </figure>
+    </div>
+    <div class="unk-list">
+      <div class="unk-tile"><span class="mark">unknown</span><code>src/legacy/Util.java</code><span class="mime">text/x-java</span></div>
+      <div class="unk-tile"><span class="mark">unknown</span><code>vendor/shim.c</code><span class="mime">text/x-csrc</span></div>
+      <div class="unk-tile"><span class="mark">unknown</span><code>scripts/once.sh</code><span class="mime">application/x-sh</span></div>
+      <div class="unk-tile"><span class="mark">unknown</span><code>third_party/hash.py</code><span class="mime">text/x-python</span></div>
+    </div>
+  </section>
 
-            <div class="col">
-              <div class="row">
-                <div class="col-sm-1">
-                  <img src="img/code.png"/>
-                </div>
-                <div class="offset-sm-1 col-sm-9">
-                  <h6>GITHUB</h6>
-                  <p>Learn more about the project, people involved, how it works and ways to contribute on github.</p>
-		  <a class="btn btn-outline-danger circular-border" href="https://github.com/chrismattmann/drat">VIEW PROJECT</a>
-			</div>
-              </div>
-            </div>
+  <section class="wrap section" id="how">
+    <p class="kicker">One command</p>
+    <h2>go hides the MapReduce.</h2>
+    <ol class="pipe">
+      <li><strong>crawl</strong><span>Walk the tree, Tika MIME</span></li>
+      <li><strong>index</strong><span>Solr <code>drat</code> core</span></li>
+      <li><strong>map</strong><span>RAT on k-sized MIME chunks</span></li>
+      <li><strong>reduce</strong><span>One combined log + CSV</span></li>
+    </ol>
+    <div class="pair" style="margin-top:1.8rem">
+      <div>
+        <img src="assets/folders.jpg" alt="File folders standing in a rack"/>
+        <p class="kicker" style="margin-top:0.7rem">MIME partition</p>
+        <h2>Java with Java. Python with Python.</h2>
+        <p>Tika sorts first. RAT never sees a mixed pile. Chunk size is configurable. Exclude <code>.git</code> and <code>target</code>.</p>
+      </div>
+      <div>
+        <img src="assets/chunks.jpg" alt="Small stacks of paper in a grid"/>
+        <p class="kicker" style="margin-top:0.7rem">Map</p>
+        <h2>k files, one JVM, a log.</h2>
+        <p>Each stack is a chunk. Incremental logs instead of one silent RAT process. Then the reducer concatenates them.</p>
+      </div>
+    </div>
+    <div class="pair wide">
+      <div>
+        <p class="kicker">The stamp</p>
+        <h2>A header is a mark on the page.</h2>
+        <p>
+          Apache RAT looks for a license notice in the file. DRAT is the
+          workflow that lets that check finish on a tree RAT alone would
+          sit on for hours.
+        </p>
+      </div>
+      <div>
+        <img src="assets/press.jpg" alt="Indigo rubber stamp on a printed listing"/>
+      </div>
+    </div>
+    <div class="features">
+      <article class="card">
+        <h3>Watch it</h3>
+        <p>OPSUI for the workflow. Proteus for <strong>Go</strong> and <strong>Reset</strong>. Solr cores <code>drat</code> and <code>statistics</code>.</p>
+      </article>
+      <article class="card">
+        <h3>Reset and go again</h3>
+        <p><code>drat reset</code> clears crawl state and keeps stats. <code>dratseq</code> walks many trees. <code>--full-wipe</code> drops stats too.</p>
+      </article>
+      <article class="card">
+        <h3>Exclude noise</h3>
+        <p><code>drat go --exclude .git ~/src/northwind-sdk</code>. Regex exclude file for the rest of the junk you do not want RAT to see.</p>
+      </article>
+    </div>
+  </section>
 
-            <div class="col">
-              <div class="row">
-                <div class="col-sm-1">
-                  <img src="img/publication.png"/>
-                </div>
-                <div class="offset-sm-1 col-sm-9">
-                  <h6>CONTRIBUTE</h6>
-                  <p>You can follow and contribute to ongoing research work on DRAT.</p>
-                  <a class="btn btn-outline-danger circular-border" href="mailto:chris.mattmann@gmail.com">SUBSCRIBE</a>
-                </div>
-              </div>
-            </div>
-          </div>
+  <section class="wrap section" id="proteus">
+    <p class="kicker">Proteus</p>
+    <h2>The console is a path and a button.</h2>
+    <p>
+      Proteus is the Vue 3 UI at <code>/proteus/</code>. You paste an absolute path, press <strong>Go</strong>, and the stack crawls.
+      <strong>Reset</strong> is the other button. The phases stay in <code>bin/drat</code>.
+      The audit above is what the reduce is for.
+    </p>
+    <div class="shots shots-wide">
+      <figure>
+        <img src="assets/proteus-run.png" alt="Proteus Vue 3 run dialog with path and Go"/>
+        <figcaption>The actual run dialog. Path in, Go.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-        </div>
-     </section> 
+  <section class="band">
+    <div class="wrap">
+      <p class="kicker">bin/drat</p>
+      <h2>The operator path.</h2>
+      <pre class="cmd"><span>$</span> bin/oodt start
+<span>$</span> bin/drat go --exclude .git ~/src/northwind-sdk
+<span>$</span> bin/drat reset
+<span>$</span> bin/drat go ~/src/another-tree</pre>
+      <p>One verb for the whole audit, reset before the next tree. <code>oodt start</code> is the Mnemosyne launcher — the name is unchanged on purpose.</p>
+      <p><a class="btn" href="https://github.com/chrismattmann/drat/wiki">Wiki</a></p>
+    </div>
+  </section>
 
-
-     <section id="contributors" class="container-fluid col-12 alternate-darkbg white-text section-space">
-       <div class="container text-center breathing-space">
-          <h2 class="col-sm-12 breathing-space ">Project Management Committee (PMC)</h2>
-          <hr/>
-
-          <div class="pmc-group">
-            <h4 class="pmc-subhead">Founder and Developer</h4>
-            <div class="row names founder-row justify-content-center">
-            </div>
-          </div>
-
-          <div class="pmc-group">
-            <h4 class="pmc-subhead">Original Contributors</h4>
-            <div class="row names contributors-row justify-content-center">
-            </div>
-          </div>
-       </div>
-     </section> 
-
-     <footer class="container-fluid footer-bg section-space">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-5">
-                  <div class="row">
-                    <div class="col-md-4 right-align">
-                        <a href="http://chrismattmann.github.org/drat/" target="_blank">
-                            <img src="img/code.png" width="70%">
-                        </a>
-                    </div>
-                    <div class="col-md-8">
-                        <ul style="list-style-type: none;">
-                         
-                            <li><a href="http://github.com/chrismattmann/" target="_blank"><h4 class="white-text">Chris Mattmann's GitHub</h4></a>
-                            <li><a class="white-text" href="http://mattmann.ai" target="_blank">Mattmann AI</a></li>
-                            <li><a class="white-text" href="https://github.com/sponsors/chrismattmann" target="_blank">Become
-                                a Sponsor</a></li>
-                            <li><a class="white-text" href="https://github.com/chrismattmann/drat/issues/" target="_blank">Report a Bug</a></li>
-                        </ul>
-                    </div>
-                  </div>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-
-  </div>
-
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script
-      src="https://code.jquery.com/jquery-3.3.1.min.js"
-      integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-      crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-    <script src="js/bootstrap.min.js"></script>
-
-    <script type="text/javascript">
-      var drat = {};
-          drat = {
-                            "display_name": "DRAT",
-                            "site": "http://chrismattman.github.io/drat//",
-                            "description": "large scale code license analysis, auditing and reporting",
-                            "mail_list": "drat",
-                            "established": "09/2017",
-                            "report": [
-                              "Next month: missing in February",
-                              "February",
-                              "May",
-                              "August",
-                              "November"
-                            ],
-                            "chair": {
-                              "chrismattmann": {
-                                "name": "Chris Mattmann"
-                              }
-                            },
-                            "roster": {
-                              "brianf": {
-                                "name": "Brian Fox",
-                                "date": "2017-09-20"
-                              },
-                              "francus": {
-                                "name": "Steven Francus",
-                                "date": "2017-09-20"
-                              },
-                              "MJJoyce": {
-                                "name": "Michael James Joyce",
-                                "date": "2017-09-20"
-                              },
-                              "karanjeets": {
-                                "name": "Karanjeet Singh",
-                                "date": "2017-09-20"
-                              },
-                              "lewismc": {
-                                "name": "Lewis John McGibbney",
-                                "date": "2017-09-20"
-                              },
-                              "buggtb": {
-                                "name": "Tom Barber",
-                                "date": "2017-09-20"
-                              },
-                              "chrismattmann": {
-                                "name": "Chris Mattmann",
-                                "date": "2017-09-20"
-                              },
-						      "ottlinger": {
-								"name": "Philipp Ottlinger",
-								"date": "2018-02-27"
-							  },
-                              "darth-pr": {
-                                "name": "Paul Ramirez",
-                                "date": "2017-09-20"
-                              },
-                              "tbpalsulich": {
-                                "name": "Tyler Palsulich",
-                                "date": "2017-09-20"
-                              },
-                              "wmburke": {
-                                "name": "Wayne Burke",
-                                "date": "2017-09-20"
-                              }
-                            },
-                            "pmc": true
-                          };
-            function pmcCard(username, name, extraClass) {
-              var handle = (username || "").replace(/\s+/g, "");
-              var isFounder = extraClass && extraClass.indexOf("pmc-founder") !== -1;
-              var col = isFounder ? "col-12 col-md-4" : "col-12 col-sm-6 col-md-3";
-              var klass = col + " breathing-space pmc-person" + (extraClass ? " " + extraClass : "");
-              return '<div class="' + klass + '"><a href="https://github.com/' + handle + '">' +
-                '<img class="pmc-avatar" src="https://github.com/' + handle + '.png?size=200" alt="' + name + '"/>' +
-                '<h5>' + name + '</h5></a></div>';
-            }
-
-            var founderIds = {};
-            for (var chairId in drat.chair) {
-              founderIds[chairId.replace(/\s+/g, "").toLowerCase()] = true;
-              $(".founder-row").append(pmcCard(chairId, drat.chair[chairId].name, "pmc-founder"));
-            }
-            for (var username in drat.roster) {
-              if (founderIds[username.replace(/\s+/g, "").toLowerCase()]) {
-                continue;
-              }
-              $(".contributors-row").append(pmcCard(username, drat.roster[username]["name"]));
-            }
-      
-    </script>
-  </body>
+  <footer>
+    <div class="wrap">
+      DRAT is a RADiX overlay on <a href="https://github.com/chrismattmann/mnemosyne">Mnemosyne</a> 1.11.0,
+      wrapping <a href="https://creadur.apache.org/rat/">Apache RAT</a>.
+      Work of <a href="https://github.com/chrismattmann">Chris Mattmann</a>
+      and <a href="https://mattmann.ai">Mattmann.AI</a>.
+      Apache License 2.0.
+    </div>
+  </footer>
+</body>
 </html>
