@@ -7,6 +7,9 @@ Distributed Release Audit Tool (DRAT)
 [![JDK](https://img.shields.io/badge/JDK-21-orange.svg)](https://adoptium.net/)
 [![Powered by Mnemosyne](https://img.shields.io/badge/powered%20by-Mnemosyne%201.11.0-6E4B8E.svg)](https://github.com/chrismattmann/mnemosyne)
 [![Website](https://img.shields.io/badge/website-chrismattmann.github.io%2Fdrat-informational.svg)](https://chrismattmann.github.io/drat/)
+[![Wiki](https://img.shields.io/badge/wiki-github-informational.svg)](https://github.com/chrismattmann/drat/wiki)
+
+<a href="https://chrismattmann.github.io/drat/"><img align="left" width="80" height="80" src="https://chrismattmann.github.io/drat/assets/drat-mark.svg" alt="DRAT"></a>
  
 A distributed, parallelized (Map Reduce) wrapper around [Apache RAT&trade;](http://creadur.apache.org/rat/) (Release Audit Tool). RAT is used to check for proper licensing in software projects. However, RAT takes a prohibitively long time to analyze large repositories of code, since it can only run on one JVM. Furthermore, RAT isn't customizable by file type or file size and provides no incremental output. This wrapper dramatically speeds up the process by leveraging [Mnemosyne](https://github.com/chrismattmann/mnemosyne) — the continuation of Apache OODT&trade;, which the ASF retired to the Attic in 2023 — to parallelize and workflow the following components:
 
