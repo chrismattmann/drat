@@ -88,7 +88,10 @@ jobs:
           # The engine reads workflows from policy-wengine through the
           # packaged repo. Shipping one without the other starts a manager
           # with no workflows at all.
-          PROPS=$(tar xzOf "$TARBALL" --wildcards '*/workflow/etc/workflow.properties')
+          # No '*/' prefix: this tarball has no top-level directory, so a
+          # leading wildcard matches nothing. ('*/bin/*' above works only
+          # because of paths like workflow/bin/wmgr.)
+          PROPS=$(tar xzOf "$TARBALL" workflow/etc/workflow.properties)
           echo "$PROPS" | grep -q 'workflow.engine.factory *= *org.apache.oodt.cas.workflow.engine.PrioritizedQueueBasedWorkflowEngineFactory'
           echo "$PROPS" | grep -q 'workflow.repo.factory *= *org.apache.oodt.cas.workflow.repository.PackagedWorkflowRepositoryFactory'
           echo "$PROPS" | grep -q 'instanceRep.factory *= *org.apache.oodt.cas.workflow.instrepo.DataSourceWorkflowInstanceRepositoryFactory'
