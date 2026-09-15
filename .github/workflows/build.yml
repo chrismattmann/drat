@@ -36,6 +36,17 @@ jobs:
           cache: npm
           cache-dependency-path: drat/webapps/proteus/src/main/webapp/resources/package-lock.json
 
+      # The Solr tarball is 343MB and both Apache hosts serve it at about
+      # 380KB/s, so fetching it costs fifteen minutes. Cached outside
+      # target/, because the build runs `mvn clean install` and would delete
+      # anything cached under target/ before the download step ran.
+      - name: Cache the Solr distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/drat-solr
+          key: solr-${{ hashFiles('drat/pom.xml') }}
+          restore-keys: solr-
+
       # install rather than test, so the packaged distribution exists for the
       # assertions below. `mvn test` on its own also works.
       - name: Build and test DRAT
