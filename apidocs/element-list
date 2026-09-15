@@ -12,3 +12,4 @@ drat.proteus.services.product
 drat.proteus.workflow.rest
 org.apache.oodt.cas.metadata.preconditions
 org.apache.oodt.cas.pge.staging
+org.apache.oodt.cas.workflow.instrepo
