@@ -77,6 +77,29 @@ jobs:
           # they are re-added with an explicit mode.
           tar tvzf "$TARBALL" | grep -E 'tomcat/bin/catalina.sh' | grep -q '^-rwx'
 
+          # W2 + HSQLDB is the default. Each of these was missing from the
+          # tarball while the drat-w2 deployment ran on them, which is how a
+          # proven configuration stayed un-shippable.
+          tar tzf "$TARBALL" | grep -q 'workflow/policy-wengine/drat-audit.xml'
+          tar tzf "$TARBALL" | grep -q 'workflow/etc/wengine-lifecycle.xml'
+          tar tzf "$TARBALL" | grep -q 'workflow/etc/workflow-hsqldb.sql'
+          tar tzf "$TARBALL" | grep -q 'workflow/lib/hsqldb-'
+
+          # The engine reads workflows from policy-wengine through the
+          # packaged repo. Shipping one without the other starts a manager
+          # with no workflows at all.
+          PROPS=$(tar xzOf "$TARBALL" --wildcards '*/workflow/etc/workflow.properties')
+          echo "$PROPS" | grep -q 'workflow.engine.factory *= *org.apache.oodt.cas.workflow.engine.PrioritizedQueueBasedWorkflowEngineFactory'
+          echo "$PROPS" | grep -q 'workflow.repo.factory *= *org.apache.oodt.cas.workflow.repository.PackagedWorkflowRepositoryFactory'
+          echo "$PROPS" | grep -q 'instanceRep.factory *= *org.apache.oodt.cas.workflow.instrepo.DataSourceWorkflowInstanceRepositoryFactory'
+          echo "$PROPS" | grep -q 'jdbc.url=jdbc:hsqldb:file:'
+
+          # The schema has to be creatable before the manager takes the lock.
+          EXT=$(tar tzf "$TARBALL" | grep -E 'workflow/lib/dms-extensions.*\.jar$' | head -1)
+          test -n "$EXT"
+          tar xzOf "$TARBALL" "$EXT" > /tmp/dms-ext.jar
+          unzip -l /tmp/dms-ext.jar | grep -q 'org/apache/oodt/cas/workflow/instrepo/WorkflowInstanceSchema.class'
+
           echo "distribution contents OK"
 
       - name: Upload DRAT distribution

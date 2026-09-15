@@ -46,6 +46,15 @@
       <outputDirectory>workflow/policy</outputDirectory>
       <includes/>
     </fileSet>
+    <!-- W2 reads its workflows from here through the packaged repo.
+         Without this fileSet the directory exists in the repo and never
+         ships, so a deployment configured for the packaged repo starts
+         with no workflows at all. -->
+    <fileSet>
+      <directory>${basedir}/src/main/resources/policy-wengine</directory>
+      <outputDirectory>workflow/policy-wengine</outputDirectory>
+      <includes/>
+    </fileSet>
     <fileSet>
       <directory>target/site/apidocs</directory>
       <filtered>false</filtered>
