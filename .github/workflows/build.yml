@@ -44,7 +44,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/drat-solr
-          key: solr-${{ hashFiles('drat/pom.xml') }}
+          # distribution/pom.xml, because that is where solr.version is
+          # declared. Hashing the root pom instead looks fine until the next
+          # Solr upgrade: the key would not change, so the stale tarball is
+          # restored, the build correctly re-downloads the new one, and the
+          # save is then skipped because the key already exists. The cache
+          # would quietly never hold the new version again.
+          key: solr-${{ hashFiles('drat/distribution/pom.xml') }}
           restore-keys: solr-
 
       # install rather than test, so the packaged distribution exists for the
