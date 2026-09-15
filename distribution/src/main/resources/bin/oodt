@@ -108,6 +108,28 @@ if [ ! -x "$OODT_BASE"/tomcat/bin/"$TOMCAT_EXEC" ]; then
   exit 1
 fi
 
+
+ensure_workflow_instance_schema() {
+  schema_sql="$OODT_BASE/workflow/etc/workflow-hsqldb.sql"
+  schema_props="$OODT_BASE/workflow/etc/workflow.properties"
+  [ -f "$schema_sql" ] && [ -f "$schema_props" ] || return 0
+  if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    schema_java="$JAVA_HOME/bin/java"
+  else
+    schema_java=java
+  fi
+  # Before the Workflow Manager starts. An HSQLDB file database belongs to
+  # one process at a time, and the manager holds it open for as long as it
+  # runs, so this cannot be done afterwards. The tool no-ops when the
+  # configured repository is Lucene, so it is safe to run unconditionally.
+  #
+  # Until this existed the schema had to be loaded by hand, which is why the
+  # drat-w2 deployment ran W2 for weeks while the repo still shipped W1.
+  "$schema_java" -cp "$OODT_BASE/workflow/lib/*" \
+    org.apache.oodt.cas.workflow.instrepo.WorkflowInstanceSchema \
+    "$schema_props" "$schema_sql" \
+    || echo "Could not verify the workflow instance database; starting anyway."
+}
 if [ "$1" = "start" ]; then
   pushd $DRAT_HOME/bin
   ulimit -n 65536 >/dev/null 2>&1 || ulimit -n 16384 >/dev/null 2>&1 || true
@@ -115,6 +137,7 @@ if [ "$1" = "start" ]; then
   cleanup_stale_pid "../workflow/run/cas.workflow.pid"
   cleanup_stale_pid "../resmgr/run/cas.resmgr.pid"
   nohup "$FILEMGR_HOME"/bin/"$FILEMGR_EXEC" start "$@" >> "$OODT_OUT" 2>&1  &
+  ensure_workflow_instance_schema
   nohup "$WORKFLOW_HOME"/bin/"$WORKFLOW_EXEC" start "$@" >> "$OODT_OUT" 2>&1  &
   nohup "$RESMGR_HOME"/bin/"$RESMGR_EXEC" start "$@" >> "$OODT_OUT" 2>&1  &
   nohup "$OODT_BASE"/tomcat/bin/"$TOMCAT_EXEC" start "$@" >> "$OODT_OUT" 2>&1 &
