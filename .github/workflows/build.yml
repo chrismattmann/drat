@@ -82,7 +82,6 @@ jobs:
           # proven configuration stayed un-shippable.
           tar tzf "$TARBALL" | grep -q 'workflow/policy-wengine/drat-audit.xml'
           tar tzf "$TARBALL" | grep -q 'workflow/etc/wengine-lifecycle.xml'
-          tar tzf "$TARBALL" | grep -q 'workflow/etc/workflow-hsqldb.sql'
           tar tzf "$TARBALL" | grep -q 'workflow/lib/hsqldb-'
 
           # The engine reads workflows from policy-wengine through the
@@ -98,10 +97,14 @@ jobs:
           echo "$PROPS" | grep -q 'jdbc.url=jdbc:hsqldb:file:'
 
           # The schema has to be creatable before the manager takes the lock.
-          EXT=$(tar tzf "$TARBALL" | grep -E 'workflow/lib/dms-extensions.*\.jar$' | head -1)
-          test -n "$EXT"
-          tar xzOf "$TARBALL" "$EXT" > /tmp/dms-ext.jar
-          unzip -l /tmp/dms-ext.jar | grep -q 'org/apache/oodt/cas/workflow/instrepo/WorkflowInstanceSchema.class'
+          # The tool and the schema both come from cas-workflow now; DRAT
+          # carried copies of each until Mnemosyne 1.13.1.
+          WF=$(tar tzf "$TARBALL" | grep -E 'workflow/lib/cas-workflow-.*\.jar$' | head -1)
+          test -n "$WF"
+          tar xzOf "$TARBALL" "$WF" > /tmp/cas-workflow.jar
+          unzip -l /tmp/cas-workflow.jar | grep -q 'org/apache/oodt/cas/workflow/instrepo/WorkflowInstanceSchema.class'
+          unzip -l /tmp/cas-workflow.jar | grep -q ' workflow.sql$'
+          ! tar tzf "$TARBALL" | grep -q 'workflow/etc/workflow-hsqldb.sql'
 
           echo "distribution contents OK"
 

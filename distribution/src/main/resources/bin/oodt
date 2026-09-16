@@ -110,9 +110,8 @@ fi
 
 
 ensure_workflow_instance_schema() {
-  schema_sql="$OODT_BASE/workflow/etc/workflow-hsqldb.sql"
   schema_props="$OODT_BASE/workflow/etc/workflow.properties"
-  [ -f "$schema_sql" ] && [ -f "$schema_props" ] || return 0
+  [ -f "$schema_props" ] || return 0
   if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
     schema_java="$JAVA_HOME/bin/java"
   else
@@ -123,11 +122,11 @@ ensure_workflow_instance_schema() {
   # runs, so this cannot be done afterwards. The tool no-ops when the
   # configured repository is Lucene, so it is safe to run unconditionally.
   #
-  # Until this existed the schema had to be loaded by hand, which is why the
-  # drat-w2 deployment ran W2 for weeks while the repo still shipped W1.
+  # No .sql argument: the schema ships inside cas-workflow and the tool
+  # applies it. DRAT carried its own copy until Mnemosyne 1.13.1.
   "$schema_java" -cp "$OODT_BASE/workflow/lib/*" \
     org.apache.oodt.cas.workflow.instrepo.WorkflowInstanceSchema \
-    "$schema_props" "$schema_sql" \
+    "$schema_props" \
     || echo "Could not verify the workflow instance database; starting anyway."
 }
 if [ "$1" = "start" ]; then
