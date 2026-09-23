@@ -29,10 +29,15 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Set up Node.js 18
+      # Node 22, not 18. jsdom reaches whatwg-url, which now depends on
+      # @exodus/bytes, and that package is ESM only: requiring it from
+      # CommonJS is ERR_REQUIRE_ESM on Node 18, which cannot require an ES
+      # module at all. Node 22.12 can, so the frontend suite runs there.
+      # Node 18 also went end of life in April 2025.
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           cache: npm
           cache-dependency-path: drat/webapps/proteus/src/main/webapp/resources/package-lock.json
 
@@ -58,6 +63,15 @@ jobs:
       - name: Build and test DRAT
         working-directory: drat
         run: mvn -B clean install
+
+      # The Proteus suite ran only on Windows, which is backwards: these
+      # tests cover the panels rather than anything platform specific, and
+      # the platform they are developed on was the one not running them.
+      # node_modules is already installed by the npm ci the Maven build
+      # runs, so this only executes them.
+      - name: Test Proteus frontend
+        working-directory: drat/webapps/proteus/src/main/webapp/resources
+        run: npm test -- --run
 
       - name: Check the distribution contents
         working-directory: drat
@@ -132,10 +146,15 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Set up Node.js 18
+      # Node 22, not 18. jsdom reaches whatwg-url, which now depends on
+      # @exodus/bytes, and that package is ESM only: requiring it from
+      # CommonJS is ERR_REQUIRE_ESM on Node 18, which cannot require an ES
+      # module at all. Node 22.12 can, so the frontend suite runs there.
+      # Node 18 also went end of life in April 2025.
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           cache: npm
           cache-dependency-path: drat/webapps/proteus/src/main/webapp/resources/package-lock.json
 
