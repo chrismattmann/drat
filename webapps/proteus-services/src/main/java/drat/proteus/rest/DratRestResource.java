@@ -145,11 +145,20 @@ public class DratRestResource {
       // whether it finished or stopped part way rather than calling both
       // "completed".
       JsonObject last = RunMarker.readLast();
-      if (last != null && last.has("outcome")) {
-        try {
-          run.addProperty("lastOutcome", last.get("outcome").getAsString());
-        } catch (Exception ignored) {
-          // Not worth failing the answer over.
+      if (last != null) {
+        copy(last, run, "phase");
+        copy(last, run, "startedBy");
+        copy(last, run, "startedAt");
+        copy(last, run, "repo");
+        if (last.has("excludes") && last.get("excludes").isJsonArray()) {
+          run.add("excludes", last.get("excludes"));
+        }
+        if (last.has("outcome")) {
+          try {
+            run.addProperty("lastOutcome", last.get("outcome").getAsString());
+          } catch (Exception ignored) {
+            // Not worth failing the answer over.
+          }
         }
       }
       return run.toString();

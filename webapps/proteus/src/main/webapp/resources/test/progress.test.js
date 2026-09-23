@@ -96,6 +96,36 @@ describe('progress says what is happening, not a made-up percentage', () => {
     expect(wrapper.vm.status).toBe('Running...')
     wrapper.unmount()
   })
+
+  it('finishes after two confirmed stopped readings', async () => {
+    const wrapper = mountIt(progresscomp)
+    wrapper.vm.apply({ running: true, phase: 'audit' })
+    wrapper.vm.apply({ running: false })
+    expect(wrapper.vm.completed).toBe(false)
+
+    store.commit('setRun', { running: false, lastOutcome: 'finished' })
+    wrapper.vm.apply({ running: false, lastOutcome: 'finished' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.completed).toBe(true)
+    expect(wrapper.vm.status).toBe('Completed')
+    expect(wrapper.text()).toContain('Completed')
+    wrapper.unmount()
+  })
+
+  it('can reopen a completed run after it has finished', async () => {
+    const wrapper = mountIt(progresscomp)
+    wrapper.vm.apply({
+      running: false,
+      lastOutcome: 'finished',
+      repo: 'C:\\repos\\drat'
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.completed).toBe(true)
+    expect(wrapper.vm.status).toBe('Completed')
+    wrapper.unmount()
+  })
 })
 
 describe('the statistics panel', () => {

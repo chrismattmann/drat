@@ -81,12 +81,17 @@ import store from './../store/store'
       },
         loadData(){
         if(this.nothingAuditedYet()){
-          this.emptynote = "No audit has finished yet";
+          this.emptynote = this.runInProgress
+              ? "License aggregation is still running"
+              : "No audit has finished yet";
           return;
         }
           if(this.currentRepo=='')return;
-          var query = 'parent:"' + this.currentRepo + '" AND type:file';
-          axios.get(this.origin + '/proteus-services/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=0&facet=true&facet.field=license&wt=json')
+          var query = '{!term f=parent}' + this.currentRepo;
+          axios.get(this.origin + '/proteus-services/solr/statistics/select', {
+            params: { q: query, fq: 'type:file', rows: 0, facet: true,
+              'facet.field': 'license', wt: 'json' }
+          })
             .then(response=>{
               if(response.data.response.numFound>0){
                 this.licenseTypes=this.buildLicenseFacetBreakdown(response.data);
@@ -102,8 +107,10 @@ import store from './../store/store'
             
         },
         loadAggregateData(){
-          var query = 'id:"' + this.currentRepo + '"';
-          axios.get(this.origin + '/proteus-services/solr/statistics/select?q=' + encodeURIComponent(query) + '&rows=1&fl=license_*&wt=json')
+          var query = '{!term f=id}' + this.currentRepo;
+          axios.get(this.origin + '/proteus-services/solr/statistics/select', {
+            params: { q: query, rows: 1, fl: 'license_*', wt: 'json' }
+          })
             .then(response=>{
               var docs = response.data.response.docs;
               if(docs.length==0){
@@ -254,9 +261,11 @@ import store from './../store/store'
             // Which of the two it is, rather than "Retrieving Data..." for
             // both: a run that has audited nothing yet is not the same as a
             // finished run whose licences could not be read.
-            this.emptynote = this.nothingAuditedYet()
-                ? "No audit has finished yet"
-                : "No licence data for this repository yet";
+            this.emptynote = this.runInProgress
+                ? "License aggregation is still running"
+                : (this.nothingAuditedYet()
+                    ? "No audit has finished yet"
+                    : "No license data for this repository yet");
           }
           
         },
@@ -277,6 +286,9 @@ import store from './../store/store'
       },
       currentState(){
         return store.state.currentActionStep;
+      },
+      runInProgress(){
+        return Boolean(store.state.run && store.state.run.running);
       },
       currentRepo(){
         return store.state.currentRepo;

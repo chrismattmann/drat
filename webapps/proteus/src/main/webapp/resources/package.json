@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "serve": "vite",
-    "clean": "test -e ../index.html && rm -r ../css ../favicon.ico ../fonts ../index.html ../js ../drat-logo.svg ../drat-mark.svg|| echo 'Already Clean'",
+    "clean": "node clean.js",
     "build": "node build.js",
     "lint": "eslint src --ext .js,.vue",
     "test": "vitest run"

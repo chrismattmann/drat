@@ -65,17 +65,21 @@ the License.
         unreachable and stepping away from one meant confirming you meant to.
         Neither starts or stops anything: the run is the run either way.
       -->
-      <v-card id="runbanner" v-if="runningNow || progress">
+      <v-card id="runbanner" v-if="runningNow || hasLastRun || progress">
         <span id="runbannertext">
           <span v-if="runningNow">
             <strong>DRAT is running</strong>
             <span v-if="phaseLabel"> &mdash; {{ phaseLabel }}</span>
             <span v-if="runStartedByCli"> (started from the command line)</span>
           </span>
+          <span v-else-if="hasLastRun">
+            <strong>Last run {{ lastRunLabel }}</strong>
+            <span v-if="runRepo"> &mdash; {{ runRepo }}</span>
+          </span>
           <span v-else>No run in progress</span>
         </span>
         <v-btn size="small" color="primary" v-if="!progress" @click="watchRun">
-          Watch this run
+          {{ runningNow ? 'Watch this run' : 'View last run' }}
         </v-btn>
         <v-btn size="small" v-else @click="backToSummary">
           Back to summary
@@ -245,7 +249,9 @@ export default {
      * page was opened -- opens the same watch view as one started here.
      */
     watchForARun(){
-      axios.get(location.origin+"/proteus-services/drat/run")
+      axios.get(location.origin+"/proteus-services/drat/run", {
+        params: { poll: Date.now() }
+      })
       .then(response=>{
         const run = response.data && typeof response.data === 'object'
             ? response.data : null;
@@ -266,7 +272,7 @@ export default {
          * The repository is worth taking either way: the charts are drawn
          * about a repository, and this is the one being audited.
          */
-        if(run.running && run.repo && store.state.currentRepo !== run.repo){
+        if(run.repo && store.state.currentRepo !== run.repo){
           store.commit("setCurrentRepo",run.repo);
         }
       })
@@ -320,6 +326,16 @@ export default {
     },
     runningNow(){
       return !!(store.state.run && store.state.run.running);
+    },
+    hasLastRun(){
+      return !!(store.state.run && store.state.run.lastOutcome);
+    },
+    lastRunLabel(){
+      return store.state.run && store.state.run.lastOutcome === 'aborted'
+          ? 'stopped before finishing' : 'completed';
+    },
+    runRepo(){
+      return store.state.run ? store.state.run.repo : '';
     },
     /* What RAT found, so not before RAT has finished an audit. */
     licencesToShow(){

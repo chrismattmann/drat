@@ -122,8 +122,8 @@ the License.
           // this, so it has to describe now and not the last phase that
           // happened to ask.
           this.loadInstanceCount();
-          if(!clearing && (auditing || this.currentState=="CRAWL")) this.loadCrawledFiles();
-          if(!clearing && (auditing || this.currentState=="INDEX" || this.currentState=="MAP"))this.loadIndexedFiles();
+          if(!clearing && (auditing || this.currentState=="CRAWL" || this.currentState=="DONE")) this.loadCrawledFiles();
+          if(!clearing && (auditing || this.currentState=="INDEX" || this.currentState=="MAP" || this.currentState=="DONE"))this.loadIndexedFiles();
         }.bind(this), 1000);
     },
     beforeUnmount(){
@@ -163,7 +163,7 @@ the License.
         const skip = this.excludes
             ? "&exclude=" + encodeURIComponent(this.excludes) : "";
         axios.get(this.origin+"/proteus-services/service/repo/size?dir="
-            + this.currentRepo + skip)
+            + encodeURIComponent(this.currentRepo) + skip)
         .then(response=>{
           if (!(isNaN(parseFloat(response.data.memorySize)) || !isFinite(response.data.memorySize))){
           var units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB'],

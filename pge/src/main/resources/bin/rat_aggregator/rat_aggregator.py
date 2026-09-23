@@ -30,20 +30,28 @@ from urllib.request import urlopen, Request
 import json
 import glob
 import hashlib
-import requests
 from collections import Counter
+
+
+def decode_rat_text(value):
+   """Decode text copied from an arbitrary audited file into a RAT report."""
+   return value.decode('utf-8', errors='replace')
 
 
 def parse_license(s):
    li_dict = {'N': 'Notes', 'B': 'Binaries', 'A': 'Archives', 'AL': 'Apache', '!?????': 'Unknown'}
    if s and not s.isspace():
-      arr = s.split(b"/", 1)
-      li = arr[0].strip().decode('utf-8')
+      # RAT writes "<marker> <path>". Splitting at the first slash happened
+      # to work for absolute Unix paths, but a Windows path made the marker
+      # "!????? C:" and exposed that drive letter as a license name.
+      arr = s.strip().split(None, 1)
+      li = decode_rat_text(arr[0])
       if li in li_dict:
          li = li_dict[li]
 
-      if len(arr) > 1 and len(arr[1].split(b"/")) > 0:
-         return [arr[1].split(b"/")[-1].decode('utf-8'), li]
+      if len(arr) > 1:
+         path = arr[1].replace(b"\\", b"/")
+         return [decode_rat_text(path.rsplit(b"/", 1)[-1]), li]
       else:
          #print('split not correct during license parsing '+str(arr))
          return ["/dev/null", li_dict['!?????']]
@@ -169,9 +177,13 @@ def main(argv=None):
                   if b'=====================================================' in line or b'== File:' in line:
                      h += 1
                   if h == 2:
-                     cur_file = line.split(b"/")[-1].strip().decode('utf-8')
+                     cur_file = decode_rat_text(line.split(b"/")[-1].strip())
                   if h == 3:
-                     cur_header += line.decode('utf-8')
+                     # RAT may include bytes copied verbatim from a file that
+                     # is not UTF-8 (for example Windows-1252 punctuation or
+                     # binary content misidentified as text). One such byte
+                     # must not discard the entire repository aggregation.
+                     cur_header += decode_rat_text(line)
                   if h == 4:
                      rat_header[cur_file] = cur_header.split("\n", 1)[1]
                      cur_file = ''
@@ -188,9 +200,7 @@ def main(argv=None):
 
       # Extract data from Solr
       neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
-
-      response = json.loads(connection.text)
+      response = json.loads(urlopen(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true").read().decode('utf-8'))
       mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
 
       for i in range(0, len(mime_count), 2):
@@ -198,18 +208,17 @@ def main(argv=None):
             stats["mime_" + mime_count[i]] = mime_count[i + 1]
 
 
-      # Count the number of files
-      stats["files"] = count_num_files(rep["repo"], ".git")
+      # Use the files actually admitted to this audit. Walking the checkout a
+      # second time counted excluded build/vendor directories and made the
+      # summary disagree with both crawl progress and its own file records.
+      stats["files"] = response["response"]["numFound"]
       # Index RAT logs into Solr
-      connection = requests.get(os.getenv("SOLR_URL") +
-                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true")
-      response = json.loads(connection.text)
+      response = json.loads(urlopen(os.getenv("SOLR_URL") +
+                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true").read().decode('utf-8'))
       num_found = response['response']['numFound']
-      connection = requests.get(os.getenv("SOLR_URL") +
+      response = json.loads(urlopen(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows="
-                                + str(num_found) +"&indent=true")
-
-      response = json.loads(connection.text)
+                                + str(num_found) +"&indent=true").read().decode('utf-8'))
       docs = response['response']['docs']
       file_data = []
       unique_file_data = {}
@@ -255,7 +264,12 @@ def main(argv=None):
       totalApache = license_counts["Apache"]
       totalGenerated = license_counts["Generated"]
       totalUnknown = license_counts["Unknown"]
-      non_standard_licenses = set(["Notes", "Binaries", "Archives", "Generated"])
+      # These are already represented by their own aggregate fields. Keep
+      # Standards mutually exclusive so one file cannot appear in both the
+      # Unknown (or Apache) bar and the Standards bar.
+      non_standard_licenses = set([
+          "Notes", "Binaries", "Archives", "Generated", "Apache", "Unknown"
+      ])
       totalStandards = sum(count for license_name, count in license_counts.items()
                            if license_name not in non_standard_licenses)
 

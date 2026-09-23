@@ -160,28 +160,36 @@ the License.
                   at once it ran the length of the page and on under the fixed
                   footer, where the last rows could not be reached.
                 -->
-                <v-data-table
-                  :headers="license.headers"
-                  :items="filteredFiles"
-                  :items-per-page="25"
-                  :items-per-page-options="filesPerPage"
-                  class="licence-table"
-                >
-                  <template #item="{ item, index }">
+                <v-table class="licence-table" fixed-header height="500px">
+                  <thead>
                     <tr>
-                      <td class="text-left">{{index+1 }}</td>
-                      <td class="text-left">{{ item.id }}</td>
-                      <td class="text-left">{{ item.mimetype }}</td>
-                      <td class="text-left">{{ item.license }}</td>
-                      <td class="text-left" id="headercell">{{ item.header }}</td>
+                      <th>#</th>
+                      <th>Location</th>
+                      <th>Mime Type</th>
+                      <th>License</th>
+                      <th>Header</th>
                     </tr>
-                  </template>
-                  <template #no-data>
-                    <v-alert type="error" icon="mdi-alert">
+                  </thead>
+                  <tbody>
+                    <tr v-for="file in displayFiles" :key="file.id">
+                      <td>{{ file.num }}</td>
+                      <td>{{ file.id }}</td>
+                      <td>{{ file.mimetype }}</td>
+                      <td>{{ file.license }}</td>
+                      <td class="headercell">{{ file.header }}</td>
+                    </tr>
+                    <tr v-if="displayFiles.length === 0">
+                      <td colspan="5">
+                    <v-alert v-if="hasFileSearch" type="error" icon="mdi-alert">
                       Your search for "{{ search }}" found no results.
                     </v-alert>
-                  </template>
-                </v-data-table>
+                    <v-alert v-else type="info" icon="mdi-information">
+                      No audited files are available for this repository.
+                    </v-alert>
+                      </td>
+                    </tr>
+                  </tbody>
+                </v-table>
               </v-col>
             </v-row>
           </v-card> 
@@ -223,8 +231,8 @@ import store from './../store/store';
           docs:[],
           headers:[
             { title: '#',sortable: true, key: 'num' },
-            { title: 'Location',sortable: false, key: 'loc' },
-            { title: 'Mime Type',sortable: true, key: 'mtype' },
+            { title: 'Location',sortable: false, key: 'id' },
+            { title: 'Mime Type',sortable: true, key: 'mimetype' },
             { title: 'License',sortable: true, key: 'license' },
             { title: 'Header',sortable:false,key:'header',width:'20px'}
           ]
@@ -346,26 +354,23 @@ import store from './../store/store';
             })
       },
       loadLicenseData(){
-        axios.get(this.origin+"/proteus-services/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&wt=json")
-          .then(response2=>{
-            if(response2.data.response.numFound!=null){
-                axios.get(this.origin+"/proteus-services/solr/statistics/select?q=id:\""+this.selectedItem.repo+"\"&fl=license_*&rows="+response2.data.response.numFound+"&wt=json")
-                .then(response=>{
-                    this.$log.info(response.data);
-                    this.license.docs=response.data.response.docs[0];
-                });
-            }
-             
-            
+        // The standard query parser treats Windows backslashes as escapes.
+        // The term parser compares the repository id literally on every OS.
+        const query = '{!term f=id}' + this.selectedItem.repo;
+        axios.get(this.origin+"/proteus-services/solr/statistics/select", {
+          params: { q: query, fl: 'license_*', rows: 1, wt: 'json' }
+        })
+          .then(response=>{
+            this.license.docs = response.data.response.docs[0] || {};
           })
        },
       loadFileDetails(){
-        axios.get(this.origin+"/proteus-services/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows=5000&wt=json")
-        .then(response2=>{
-            axios.get(this.origin+"/proteus-services/solr/statistics/select?q=parent:\""+this.selectedItem.repo+"\"&rows="+response2.data.response.numFound+"&wt=json")
-            .then(response=>{
-              this.sortedfiles  = response.data.response.docs;
-            });
+        const query = '{!term f=parent}' + this.selectedItem.repo;
+        axios.get(this.origin+"/proteus-services/solr/statistics/select", {
+          params: { q: query, rows: 5000, wt: 'json' }
+        })
+        .then(response=>{
+          this.sortedfiles = response.data.response.docs;
         });
         
       }
@@ -390,6 +395,18 @@ import store from './../store/store';
       },
       filteredFiles(){
         return this.customFilterFiles(this.sortedfiles, this.search);
+      },
+      displayFiles(){
+        return this.filteredFiles.map((file, index) => ({
+          num: index + 1,
+          id: file.id,
+          mimetype: file.mimetype,
+          license: file.license,
+          header: file.header
+        }));
+      },
+      hasFileSearch(){
+        return Boolean((this.search || '').toString().trim());
       },
       currentrepo(){
         return store.state.currentRepo;
@@ -464,7 +481,7 @@ import store from './../store/store';
    * Unwrapped it pushed the table wider than the page and ran off the right
    * margin, taking the columns before it with it.
    */
-  #headercell {
+  .headercell {
     max-width: 380px;
     white-space: normal;
     overflow-wrap: anywhere;

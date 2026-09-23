@@ -57,8 +57,12 @@ function copyDirectoryContents(from, to) {
 
 remove(dist)
 
-const vite = path.join(root, 'node_modules', '.bin', 'vite')
-const child = spawn(vite, ['build'], { cwd: root, stdio: 'inherit' })
+// Invoke Vite's JavaScript entry point through the current Node executable.
+// The generated .bin shim is an executable shell script on Unix, but is a
+// vite.cmd wrapper on Windows, which child_process.spawn cannot execute
+// directly without opting into a shell.
+const vite = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
+const child = spawn(process.execPath, [vite, 'build'], { cwd: root, stdio: 'inherit' })
 
 child.on('exit', (code) => {
   if (code !== 0) {

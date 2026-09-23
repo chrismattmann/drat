@@ -23,7 +23,7 @@ the License.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
@@ -175,6 +175,37 @@ describe('the licence chips filter the file table', () => {
 })
 
 describe('the project view cannot be typed into', () => {
+  it('loads and renders files for a Windows repository', async () => {
+    const repo = 'C:\\Users\\chris\\drat-smoke'
+    axios.get.mockImplementation((url, config) => {
+      const query = config && config.params && config.params.q
+      if (query === '{!term f=parent}' + repo) {
+        return Promise.resolve({ data: { response: {
+          numFound: 1, docs: [{ id: repo + '\\hello.py',
+            mimetype: 'text/x-python', license: 'Unknown', header: 'header' }]
+        } } })
+      }
+      return Promise.resolve({ data: {
+        response: { numFound: 0, start: 0, docs: [] }
+      } })
+    })
+    const wrapper = table()
+    wrapper.vm.license.files = []
+    wrapper.vm.moreClicked({ repo, name: 'drat-smoke' })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.license.files.map(file => file.id))
+      .toEqual([repo + '\\hello.py'])
+    // Fullscreen Vuetify dialogs are teleported under document.body. Assert
+    // the row itself, not merely component state or unrelated dialog text.
+    const fileTable = document.querySelector('#licensefiletable')
+    expect(fileTable.textContent).toContain('hello.py')
+    expect(fileTable.textContent).toContain('text/x-python')
+    expect(fileTable.textContent).toContain('Unknown')
+    wrapper.unmount()
+  })
+
   it('renders the details as text, not as inputs', async () => {
     const wrapper = table()
     wrapper.vm.selectedItem = {
