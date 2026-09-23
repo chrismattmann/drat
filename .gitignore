@@ -30,3 +30,7 @@ webapps/proteus/src/main/webapp/resources/node_modules
 
 # stray console output
 nohup.out
+
+# Python bytecode from the PGE script tests
+__pycache__/
+*.pyc
