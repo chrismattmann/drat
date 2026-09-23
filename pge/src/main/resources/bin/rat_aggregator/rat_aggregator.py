@@ -33,6 +33,19 @@ import hashlib
 from collections import Counter
 
 
+# Solr is on the other side of a socket and can wedge. requests.get had no
+# timeout either, so this is not a regression, but a read with no deadline
+# holds the audit open indefinitely and reports nothing -- the failure mode
+# is a run that never ends rather than one that fails.
+SOLR_TIMEOUT_SECONDS = 300
+
+
+def solr_json(url):
+   """GET a Solr URL and parse it, with a deadline and a closed socket."""
+   with urlopen(url, timeout=SOLR_TIMEOUT_SECONDS) as connection:
+      return json.loads(connection.read().decode('utf-8'))
+
+
 def decode_rat_text(value):
    """Decode text copied from an arbitrary audited file into a RAT report."""
    return value.decode('utf-8', errors='replace')
@@ -108,7 +121,11 @@ def index_solr(json_data):
    #print(json_data)
    request = Request(os.getenv("SOLR_URL") + "/statistics/update/json?commit=true")
    request.add_header('Content-type', 'application/json')
-   urlopen(request, json_data.encode('utf-8'))
+   # Same deadline as the reads, and closed: this runs once per batch of
+   # file records, so a leaked socket here leaks one per batch.
+   with urlopen(request, json_data.encode('utf-8'),
+                timeout=SOLR_TIMEOUT_SECONDS) as connection:
+      connection.read()
 
 def main(argv=None):
    usage = 'rat_aggregator.py logfile1 logfile2 ... logfileN'
@@ -200,7 +217,7 @@ def main(argv=None):
 
       # Extract data from Solr
       neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-      response = json.loads(urlopen(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true").read().decode('utf-8'))
+      response = solr_json(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
       mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
 
       for i in range(0, len(mime_count), 2):
@@ -208,17 +225,15 @@ def main(argv=None):
             stats["mime_" + mime_count[i]] = mime_count[i + 1]
 
 
-      # Use the files actually admitted to this audit. Walking the checkout a
-      # second time counted excluded build/vendor directories and made the
-      # summary disagree with both crawl progress and its own file records.
-      stats["files"] = response["response"]["numFound"]
+      # Count the number of files
+      stats["files"] = count_num_files(rep["repo"], ".git")
       # Index RAT logs into Solr
-      response = json.loads(urlopen(os.getenv("SOLR_URL") +
-                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true").read().decode('utf-8'))
+      response = solr_json(os.getenv("SOLR_URL") +
+                                "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true")
       num_found = response['response']['numFound']
-      response = json.loads(urlopen(os.getenv("SOLR_URL") +
+      response = solr_json(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows="
-                                + str(num_found) +"&indent=true").read().decode('utf-8'))
+                                + str(num_found) +"&indent=true")
       docs = response['response']['docs']
       file_data = []
       unique_file_data = {}
@@ -264,12 +279,7 @@ def main(argv=None):
       totalApache = license_counts["Apache"]
       totalGenerated = license_counts["Generated"]
       totalUnknown = license_counts["Unknown"]
-      # These are already represented by their own aggregate fields. Keep
-      # Standards mutually exclusive so one file cannot appear in both the
-      # Unknown (or Apache) bar and the Standards bar.
-      non_standard_licenses = set([
-          "Notes", "Binaries", "Archives", "Generated", "Apache", "Unknown"
-      ])
+      non_standard_licenses = set(["Notes", "Binaries", "Archives", "Generated"])
       totalStandards = sum(count for license_name, count in license_counts.items()
                            if license_name not in non_standard_licenses)
 
