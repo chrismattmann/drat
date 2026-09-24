@@ -150,6 +150,7 @@ public class DratRestResource {
         copy(last, run, "startedBy");
         copy(last, run, "startedAt");
         copy(last, run, "repo");
+        copy(last, run, "totalFiles");
         if (last.has("excludes") && last.get("excludes").isJsonArray()) {
           run.add("excludes", last.get("excludes"));
         }
@@ -171,6 +172,7 @@ public class DratRestResource {
       copy(marker, run, "startedBy");
       copy(marker, run, "startedAt");
       copy(marker, run, "repo");
+      copy(marker, run, "totalFiles");
       // Carried through so a reader can ask for figures about the same set of
       // files this run is working on, and go on asking for them once the run
       // has ended and its marker is gone.

@@ -116,6 +116,13 @@ def audited_file_count(solr_response):
    return solr_response["response"]["numFound"]
 
 
+def license_totals_line(totals):
+   """Render the aggregate buckets in the same order as the CSV heading."""
+   return ",".join(str(totals[name]) for name in
+                   ("Notes", "Binaries", "Archives", "Standards", "Apache",
+                    "Generated", "Unknown"))
+
+
 def parseFile(filepath):
    f = open(filepath, 'r')
    lines = f.readlines()
@@ -327,7 +334,7 @@ def main(argv=None):
 
       # Copying data to Output Directory
       print ("Notes,Binaries,Archives,Standards,Apache,Generated,Unknown")
-      print(str(totalNotes)+","+str(totalBinaries)+","+str(totalArchives)+","+str(totalStandards)+","+str(totalApache)+"    ,"+str(totalGenerated)+","+str(totalUnknown))
+      print(license_totals_line(totals))
       
       #print("\nData copied to Solr and Output Directory: OK\n")
 

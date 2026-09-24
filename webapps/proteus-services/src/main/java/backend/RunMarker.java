@@ -127,6 +127,13 @@ public class RunMarker {
         marker.add("excludes", listed);
       }
     }
+    Long previousTotal = readLong("totalFiles");
+    String previousRepo = read("repo");
+    if (previousTotal != null && (repo == null || repo.equals(previousRepo))) {
+      marker.addProperty("totalFiles", previousTotal);
+    } else if (repo != null) {
+      marker.addProperty("totalFiles", countFiles(new File(repo), skipping));
+    }
     FileWriter writer = null;
     try {
       // A deployment that has never run has no data directory yet, and a
@@ -245,6 +252,57 @@ public class RunMarker {
           + e.getMessage());
     }
     return names;
+  }
+
+  /** Frozen denominator recorded when the run began, if its launcher supplied one. */
+  public static synchronized Long totalFiles(String repository) {
+    JsonObject parsed = readAll();
+    if (parsed == null) {
+      parsed = readLast();
+    }
+    if (parsed == null || !parsed.has("totalFiles")) {
+      return null;
+    }
+    try {
+      if (repository != null && parsed.has("repo")
+          && !new File(repository).getCanonicalFile().equals(
+              new File(parsed.get("repo").getAsString()).getCanonicalFile())) {
+        return null;
+      }
+      return parsed.get("totalFiles").getAsLong();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static Long readLong(String field) {
+    JsonObject parsed = readAll();
+    if (parsed == null || !parsed.has(field)) {
+      return null;
+    }
+    try {
+      return parsed.get(field).getAsLong();
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static long countFiles(File entry, List<String> excluded) {
+    if (entry == null || !entry.exists()
+        || (excluded != null && excluded.contains(entry.getName()))) {
+      return 0;
+    }
+    if (entry.isFile()) {
+      return entry.length() > 0 ? 1 : 0;
+    }
+    long count = 0;
+    File[] children = entry.listFiles();
+    if (children != null) {
+      for (File child : children) {
+        count += countFiles(child, excluded);
+      }
+    }
+    return count;
   }
 
   /**
