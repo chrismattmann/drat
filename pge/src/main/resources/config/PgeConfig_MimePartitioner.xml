@@ -37,7 +37,7 @@
       per MIME type and start together: two that begin in the same
       millisecond named the same directory, so they would have staged their
       inputs over each other. What actually happened is that the second one
-      failed on "mkdirs for logs directory return false" -- the PGE refusing
+      failed on "mkdirs for logs directory return false"; the PGE was refusing
       to share a working directory, which is the right instinct. JobId is the
       workflow instance id and is unique per job.
     -->

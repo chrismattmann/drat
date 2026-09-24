@@ -43,6 +43,7 @@ export SOLR_URL=${SOLR_URL:-http://$OODT_HOST:$SOLR_PORT/solr}
 export FMPROD_HOME=$DRAT_HOME/tomcat/webapps/fmprod/WEB-INF/classes/
 export SOLR_DRAT_URL=${SOLR_DRAT_URL:-$SOLR_URL/drat}
 export DRAT_EXCLUDE=""
+export PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:-python3}
 
 #####  Copy and Paste this Block into the .bashrc of your deployment user account ##########
 #

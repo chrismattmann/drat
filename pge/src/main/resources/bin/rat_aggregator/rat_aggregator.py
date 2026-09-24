@@ -30,20 +30,41 @@ from urllib.request import urlopen, Request
 import json
 import glob
 import hashlib
-import requests
 from collections import Counter
+
+
+# Solr is on the other side of a socket and can wedge. requests.get had no
+# timeout either, so this is not a regression, but a read with no deadline
+# holds the audit open indefinitely and reports nothing -- the failure mode
+# is a run that never ends rather than one that fails.
+SOLR_TIMEOUT_SECONDS = 300
+
+
+def solr_json(url):
+   """GET a Solr URL and parse it, with a deadline and a closed socket."""
+   with urlopen(url, timeout=SOLR_TIMEOUT_SECONDS) as connection:
+      return json.loads(connection.read().decode('utf-8'))
+
+
+def decode_rat_text(value):
+   """Decode text copied from an arbitrary audited file into a RAT report."""
+   return value.decode('utf-8', errors='replace')
 
 
 def parse_license(s):
    li_dict = {'N': 'Notes', 'B': 'Binaries', 'A': 'Archives', 'AL': 'Apache', '!?????': 'Unknown'}
    if s and not s.isspace():
-      arr = s.split(b"/", 1)
-      li = arr[0].strip().decode('utf-8')
+      # RAT writes "<marker> <path>". Splitting at the first slash happened
+      # to work for absolute Unix paths, but a Windows path made the marker
+      # "!????? C:" and exposed that drive letter as a license name.
+      arr = s.strip().split(None, 1)
+      li = decode_rat_text(arr[0])
       if li in li_dict:
          li = li_dict[li]
 
-      if len(arr) > 1 and len(arr[1].split(b"/")) > 0:
-         return [arr[1].split(b"/")[-1].decode('utf-8'), li]
+      if len(arr) > 1:
+         path = arr[1].replace(b"\\", b"/")
+         return [decode_rat_text(path.rsplit(b"/", 1)[-1]), li]
       else:
          #print('split not correct during license parsing '+str(arr))
          return ["/dev/null", li_dict['!?????']]
@@ -100,7 +121,11 @@ def index_solr(json_data):
    #print(json_data)
    request = Request(os.getenv("SOLR_URL") + "/statistics/update/json?commit=true")
    request.add_header('Content-type', 'application/json')
-   urlopen(request, json_data.encode('utf-8'))
+   # Same deadline as the reads, and closed: this runs once per batch of
+   # file records, so a leaked socket here leaks one per batch.
+   with urlopen(request, json_data.encode('utf-8'),
+                timeout=SOLR_TIMEOUT_SECONDS) as connection:
+      connection.read()
 
 def main(argv=None):
    usage = 'rat_aggregator.py logfile1 logfile2 ... logfileN'
@@ -169,9 +194,13 @@ def main(argv=None):
                   if b'=====================================================' in line or b'== File:' in line:
                      h += 1
                   if h == 2:
-                     cur_file = line.split(b"/")[-1].strip().decode('utf-8')
+                     cur_file = decode_rat_text(line.split(b"/")[-1].strip())
                   if h == 3:
-                     cur_header += line.decode('utf-8')
+                     # RAT may include bytes copied verbatim from a file that
+                     # is not UTF-8 (for example Windows-1252 punctuation or
+                     # binary content misidentified as text). One such byte
+                     # must not discard the entire repository aggregation.
+                     cur_header += decode_rat_text(line)
                   if h == 4:
                      rat_header[cur_file] = cur_header.split("\n", 1)[1]
                      cur_file = ''
@@ -188,9 +217,7 @@ def main(argv=None):
 
       # Extract data from Solr
       neg_mimetype = ["image", "application", "text", "video", "audio", "message", "multipart"]
-      connection = requests.get(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
-
-      response = json.loads(connection.text)
+      response = solr_json(os.getenv("SOLR_URL") + "/drat/select?q=*%3A*&rows=0&facet=true&facet.field=mimetype&wt=json&indent=true")
       mime_count = response["facet_counts"]["facet_fields"]["mimetype"]
 
       for i in range(0, len(mime_count), 2):
@@ -201,15 +228,12 @@ def main(argv=None):
       # Count the number of files
       stats["files"] = count_num_files(rep["repo"], ".git")
       # Index RAT logs into Solr
-      connection = requests.get(os.getenv("SOLR_URL") +
+      response = solr_json(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true")
-      response = json.loads(connection.text)
       num_found = response['response']['numFound']
-      connection = requests.get(os.getenv("SOLR_URL") +
+      response = solr_json(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows="
                                 + str(num_found) +"&indent=true")
-
-      response = json.loads(connection.text)
       docs = response['response']['docs']
       file_data = []
       unique_file_data = {}

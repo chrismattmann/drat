@@ -81,7 +81,9 @@ the License.
     methods: {
       loaddata(){
         this.loadWaitingOn();
-        axios.get(this.origin+"/proteus-services/drat/run")
+        axios.get(this.origin+"/proteus-services/drat/run", {
+          params: { poll: Date.now() }
+        })
         .then(response=>{
           /*
            * Only an answer that is actually an answer counts. A response that
@@ -139,6 +141,15 @@ the License.
           this.sawRunning = true;
           this.notRunningSeen = 0;
         }else{
+          // A persisted last-run record is stable, not a transient gap while
+          // the live marker is being replaced. It can be shown immediately,
+          // including when this view is opened after the run has finished.
+          if(run.lastOutcome){
+            this.sawRunning = true;
+            this.notRunningSeen = 2;
+            this.finish(run);
+            return;
+          }
           /*
            * Asked twice. One reading is a moment, and the marker this comes
            * from is a file that a run rewrites; a reader that catches it
@@ -147,7 +158,7 @@ the License.
            */
           this.notRunningSeen = this.notRunningSeen + 1;
           if(this.notRunningSeen >= 2){
-            this.finish();
+            this.finish(run);
           }
           return;
         }
@@ -191,7 +202,7 @@ the License.
        * can satisfy -- so a command line run would watch itself finish and
        * never say it had.
        */
-      finish(){
+      finish(run){
         if(!this.sawRunning || this.completed){
           return;
         }
@@ -200,7 +211,9 @@ the License.
          * stopped. A run that aborted during its reset said Completed and
          * drew a full bar, which is the opposite of what had happened.
          */
-        const outcome = store.state.run ? store.state.run.lastOutcome : null;
+        const outcome = run && run.lastOutcome
+            ? run.lastOutcome
+            : (store.state.run ? store.state.run.lastOutcome : null);
         const finished = outcome !== 'aborted';
         this.status = finished ? "Completed" : "Stopped before finishing";
         this.completed = true;

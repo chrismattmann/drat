@@ -122,7 +122,7 @@
       <property name="SolrUrl" value="[SOLR_URL]/drat" envReplace="true"/>
       <property name="RatTaskId" value="urn:drat:RatCodeAudit"/>
       <property name="NumFilesPerJob" value="100"/>
-      <property name="PythonExecutable" value="python3"/>
+      <property name="PythonExecutable" value="[PYTHON_EXECUTABLE]" envReplace="true"/>
       <property name="MimePartitionerPyScript" value="[DRAT_HOME]/pge/bin/mime_partitioner/mime_rat_partitioner.py" envReplace="true"/>
     </configuration>
   </task>
@@ -170,7 +170,7 @@
       <property name="PCS_FileManagerUrl" value="[FILEMGR_URL]" envReplace="true"/>
       <property name="PCS_MetFileExtension" value="met"/>
       <property name="PCS_ClientTransferServiceFactory" value="org.apache.oodt.cas.filemgr.datatransfer.LocalDataTransferFactory"/>
-      <property name="PythonExecutable" value="python3"/>
+      <property name="PythonExecutable" value="[PYTHON_EXECUTABLE]" envReplace="true"/>
       <property name="RatAggregatorScript" value="[DRAT_HOME]/pge/bin/rat_aggregator/rat_aggregator.py" envReplace="true"/>
     </configuration>
   </task>

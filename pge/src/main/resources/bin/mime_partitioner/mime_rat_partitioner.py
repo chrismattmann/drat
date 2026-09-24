@@ -58,8 +58,8 @@ def is_current_repo_file(fullpath, current_repo):
         return False
 
 def execute_dynamic_workflow(workflowUrl, taskIds, metadata):
-    cmd = [
-        os.path.join(get_drat_home(), "workflow", "bin", "wmgr-client"),
+    client = os.path.join(get_drat_home(), "workflow", "bin", "wmgr-client")
+    cmd = (["sh", client] if os.name == "nt" else [client]) + [
         "--url", workflowUrl,
         "--operation",
         "--dynWorkflow",

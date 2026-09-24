@@ -94,7 +94,7 @@ the License.
 
                 drawPie("#pielicensesvg", result, {
                   scheme: d3.schemeSet3,
-                  emptyNote: "No licence data yet"
+                  emptyNote: "No license data yet"
                 });
 
                   console.log(result);

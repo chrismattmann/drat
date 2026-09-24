@@ -54,6 +54,31 @@ OODT_HOST=${OODT_HOST:-localhost}
 TOMCAT_PORT=${TOMCAT_PORT:-8080}
 SOLR_PORT=${SOLR_PORT:-8983}
 
+# The interpreter the PGE tasks run their scripts with.
+#
+# The workflow policy reads this through envReplace, and PathUtils leaves a
+# name it cannot resolve as the literal text "[PYTHON_EXECUTABLE]" -- so an
+# unset variable does not fail here, it fails much later as a PGE trying to
+# exec a program by that name, in a task log, after the crawl. setenv.sh
+# declares it, and this fills it in for a deployment upgraded in place whose
+# setenv.sh predates that line: policy and conf drift apart routinely, and
+# the default is not in question.
+#
+# Exported because it has to reach the workflow manager's environment, not
+# just this script's.
+PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:-python3}
+export PYTHON_EXECUTABLE
+
+# Resolved now rather than discovered in a task log. A deployment that sets
+# this to an interpreter that is not there is a configuration error, and it
+# should say so before it crawls anything.
+if ! command -v "$PYTHON_EXECUTABLE" > /dev/null 2>&1; then
+    echo "PYTHON_EXECUTABLE is set to [$PYTHON_EXECUTABLE], which is not on the PATH." >&2
+    echo "The RAT aggregator and MIME partitioner run through it; set it in" >&2
+    echo "$DRAT_HOME/bin/setenv.sh to a Python 3 interpreter." >&2
+    exit 1
+fi
+
 # Print out usage information for this script.
 function print_help {
     echo "Usage: drat [crawl, index, map, reduce] in order to analyze a repository." 

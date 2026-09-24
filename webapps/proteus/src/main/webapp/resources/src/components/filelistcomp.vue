@@ -47,6 +47,9 @@ import store from './../store/store';
     store,
     props: [],
     mounted() {
+        // A completed command-line run opens this view in DONE, so waiting
+        // for an AUDIT/CRAWL tick meant the initial list was never fetched.
+        this.loadData();
         this.timerClearVar = setInterval(function () {
           // "audit" is the whole pipeline, crawl included; see statisticscomp.
           if(this.currentState=="AUDIT" || this.currentState=="CRAWL")this.loadData();
@@ -74,11 +77,8 @@ import store from './../store/store';
             if(this.currentRepo!=''){
                 axios.get(this.origin+"/proteus-services/service/products?topn=10&type=GenericFile")
                 .then(response=>{
-                  
-                  response.data.forEach((v, i) => {
-                       const val = (typeof v === 'object') ? Object.assign({}, v) : v;
-                      this.fileslist.splice(i,1,val)
-                  });
+                  this.fileslist = response.data.map(v =>
+                    (typeof v === 'object') ? Object.assign({}, v) : v);
                         
                 })
                 .catch(error=>{
