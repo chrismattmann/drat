@@ -103,3 +103,13 @@ class TestTheFileCountComesFromTheAudit:
         # records. The helper the summary used for that is gone from this
         # module; if it comes back, so does the disagreement.
         assert not hasattr(agg, "count_num_files")
+
+
+class TestLicenseTotalsOutput:
+
+    def test_it_uses_the_computed_totals(self):
+        totals = {
+            "Notes": 1, "Binaries": 2, "Archives": 3, "Standards": 4,
+            "Apache": 5, "Generated": 6, "Unknown": 7,
+        }
+        assert agg.license_totals_line(totals) == "1,2,3,4,5,6,7"

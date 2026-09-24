@@ -262,6 +262,25 @@ function mark_run {
     # --exclude flags by the caller.
     local started
     started=$(date +%s)000
+    local total_files
+    if [[ -f "$DRAT_HOME/data/run" ]]; then
+        total_files=$("$PYTHON_EXECUTABLE" -c 'import json,os,sys; marker=json.load(open(sys.argv[1])); print(marker.get("totalFiles", "") if os.path.realpath(marker.get("repo", "")) == os.path.realpath(sys.argv[2]) else "")' "$DRAT_HOME/data/run" "$repo")
+    fi
+    if [[ -z "$total_files" && -n "$repo" ]]; then
+        total_files=$("$PYTHON_EXECUTABLE" - "$repo" "$@" <<'PY'
+import os, sys
+root = os.path.realpath(sys.argv[1])
+excluded = set(sys.argv[2:])
+count = 0
+for directory, names, files in os.walk(root):
+    names[:] = [name for name in names if name not in excluded]
+    for name in files:
+        if name not in excluded and os.path.getsize(os.path.join(directory, name)) > 0:
+            count += 1
+print(count)
+PY
+)
+    fi
 
     local excludes=""
     local name
@@ -281,6 +300,7 @@ function mark_run {
             "$phase" "$started"
         [[ -n "$repo" ]] && printf ',"repo":"%s"' "$repo"
         [[ -n "$excludes" ]] && printf ',"excludes":[%s]' "$excludes"
+        [[ -n "$total_files" ]] && printf ',"totalFiles":%s' "$total_files"
         printf '}\n'
     } > "$DRAT_HOME/data/run.tmp"
     mv -f "$DRAT_HOME/data/run.tmp" "$DRAT_HOME/data/run"

@@ -117,12 +117,29 @@ function Set-CurrentRepository([string] $Repository) {
 function Set-RunMarker([string] $Phase, [string] $Repository, [string[]] $Excludes) {
     $dataHome = Join-Path $DratHome 'data'
     New-Item -ItemType Directory -Force -Path $dataHome | Out-Null
+    $previousTotal = $null
+    $currentMarker = Join-Path $dataHome 'run'
+    if (Test-Path -LiteralPath $currentMarker) {
+        $previous = Get-Content -Raw -LiteralPath $currentMarker | ConvertFrom-Json
+        if ($previous.repo -eq $Repository) {
+            $previousTotal = $previous.totalFiles
+        }
+    }
+    if ($null -eq $previousTotal) {
+        $rootLength = $Repository.TrimEnd('\').Length
+        $previousTotal = @(Get-ChildItem -LiteralPath $Repository -Recurse -File -Force |
+            Where-Object {
+                $_.Length -gt 0 -and -not (@($_.FullName.Substring($rootLength).TrimStart('\').Split('\')) |
+                    Where-Object { $Excludes -contains $_ })
+            }).Count
+    }
     $record = [ordered]@{
         phase = $Phase
         startedBy = 'cli'
         startedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
         repo = $Repository
         excludes = @($Excludes)
+        totalFiles = $previousTotal
     }
     $temporary = Join-Path $dataHome 'run.tmp'
     Write-Utf8NoBom $temporary ($record | ConvertTo-Json -Compress)

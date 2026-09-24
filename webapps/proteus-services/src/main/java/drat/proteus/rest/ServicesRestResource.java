@@ -189,9 +189,13 @@ public class ServicesRestResource {
           : FileFilterUtils.and(FileFilterUtils.directoryFileFilter(),
               FileFilterUtils.notFileFilter(
                   new NameFileFilter(excluded.toArray(new String[0]))));
+      IOFileFilter files = excluded.isEmpty()
+          ? FileFilterUtils.trueFileFilter()
+          : FileFilterUtils.notFileFilter(
+              new NameFileFilter(excluded.toArray(new String[0])));
 
       Collection<File> repoFiles = FileUtils.listFiles(repoDir,
-          FileFilterUtils.trueFileFilter(), directories);
+          files, directories);
       if (repoFiles != null) {
         for (File counted : repoFiles) {
           // Empty files are not counted, because they are not crawled: the
@@ -210,7 +214,8 @@ public class ServicesRestResource {
     }
 
     Map<String, Long> repoSizeInfo = new ConcurrentHashMap<String, Long>();
-    repoSizeInfo.put("numberOfFiles", numFiles);
+    Long frozenTotal = RunMarker.totalFiles(repoPath);
+    repoSizeInfo.put("numberOfFiles", frozenTotal == null ? numFiles : frozenTotal);
     repoSizeInfo.put("memorySize", repoSize);
     return repoSizeInfo;
   }

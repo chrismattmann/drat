@@ -175,6 +175,27 @@ describe('the licence chips filter the file table', () => {
 })
 
 describe('the project view cannot be typed into', () => {
+  it('pages file results and limits headers to a short preview', async () => {
+    const wrapper = table()
+    const longHeader = '<fileSet>' + 'a'.repeat(180) + '</fileSet>'
+    wrapper.vm.license.files = Array.from({ length: 75 }, (_, index) => ({
+      id: `file-${index}.xml`,
+      mimetype: 'application/xml',
+      license: 'Unknown',
+      header: index === 0 ? longHeader : ''
+    }))
+    wrapper.vm.dialog = true
+    await wrapper.vm.$nextTick()
+
+    const fileTable = document.querySelector('#licensefiletable')
+    expect(fileTable.textContent).toContain('1-50 of 75')
+    expect(fileTable.textContent).not.toContain('file-74.xml')
+    expect(wrapper.vm.headerPreview(longHeader).length).toBe(101)
+    expect(wrapper.vm.headerPreview(longHeader)).toMatch(/\u2026$/)
+    expect(fileTable.textContent).not.toContain(longHeader)
+    wrapper.unmount()
+  })
+
   it('loads and renders files for a Windows repository', async () => {
     const repo = 'C:\\Users\\chris\\drat-smoke'
     axios.get.mockImplementation((url, config) => {

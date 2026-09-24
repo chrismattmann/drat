@@ -160,36 +160,29 @@ the License.
                   at once it ran the length of the page and on under the fixed
                   footer, where the last rows could not be reached.
                 -->
-                <v-table class="licence-table" fixed-header height="500px">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Location</th>
-                      <th>Mime Type</th>
-                      <th>License</th>
-                      <th>Header</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="file in displayFiles" :key="file.id">
-                      <td>{{ file.num }}</td>
-                      <td>{{ file.id }}</td>
-                      <td>{{ file.mimetype }}</td>
-                      <td>{{ file.license }}</td>
-                      <td class="headercell">{{ file.header }}</td>
-                    </tr>
-                    <tr v-if="displayFiles.length === 0">
-                      <td colspan="5">
+                <v-data-table
+                  class="licence-table"
+                  :headers="license.headers"
+                  :items="displayFiles"
+                  :items-per-page="50"
+                  :items-per-page-options="fileRowsPerPageOptions"
+                  fixed-header
+                  height="500px"
+                >
+                  <template #item.header="{ item }">
+                    <span class="headercell" :title="item.header">
+                      {{ headerPreview(item.header) }}
+                    </span>
+                  </template>
+                  <template #no-data>
                     <v-alert v-if="hasFileSearch" type="error" icon="mdi-alert">
                       Your search for "{{ search }}" found no results.
                     </v-alert>
                     <v-alert v-else type="info" icon="mdi-information">
                       No audited files are available for this repository.
                     </v-alert>
-                      </td>
-                    </tr>
-                  </tbody>
-                </v-table>
+                  </template>
+                </v-data-table>
               </v-col>
             </v-row>
           </v-card> 
@@ -275,7 +268,8 @@ import store from './../store/store';
           {title:'50',value:50},{title:'100',value:100},{title:'200',value:200},
           {title:'500',value:500},{title:'1000',value:1000},{title:'3000',value:3000},
           {title:'5000',value:5000},{title:'All',value:-1}
-        ]
+        ],
+        fileRowsPerPageOptions: [25, 50, 100]
       }
       
     },
@@ -327,6 +321,12 @@ import store from './../store/store';
             return value != null && value.toString().toLowerCase().includes(normalizedSearch);
           });
         });
+      },
+      headerPreview(header){
+        const normalized = (header || '').toString().replace(/\s+/g, ' ').trim();
+        return normalized.length > 100
+          ? normalized.substring(0, 100) + '\u2026'
+          : normalized;
       },
       loadData(){
           axios.get(this.origin+"/proteus-services/solr/statistics/select?q=type:project&wt=json")
@@ -482,9 +482,11 @@ import store from './../store/store';
    * margin, taking the columns before it with it.
    */
   .headercell {
-    max-width: 380px;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    display: block;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 12px;
     line-height: 1.35;
     padding-top: 6px;
