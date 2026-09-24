@@ -73,6 +73,49 @@ def parse_license(s):
       return ["/dev/null", li_dict['!?????']]
 
 
+LICENSE_AGGREGATE_FIELDS = ("Notes", "Binaries", "Archives", "Generated",
+                            "Apache", "Unknown")
+
+
+def license_totals(license_counts):
+   """Per-category totals for one audit, as mutually exclusive buckets.
+
+   Standards used to mean "everything that is not Notes, Binaries, Archives
+   or Generated", which let Apache and Unknown fall into it as well. Both
+   already have an aggregate field of their own, so every Apache-licensed
+   file was counted twice: once in the Apache bar and again in Standards.
+   On a repository that is mostly Apache licensed, Standards was close to a
+   second copy of the file count rather than a category.
+
+   A file has exactly one license, so the buckets have to partition.
+   """
+   # .get rather than indexing: a Counter invents a zero for a missing key
+   # and a plain mapping raises, and the caller should not have to know
+   # which one it is holding.
+   totals = dict((name, license_counts.get(name, 0))
+                 for name in LICENSE_AGGREGATE_FIELDS)
+   totals["Standards"] = sum(
+       count for license_name, count in license_counts.items()
+       if license_name not in LICENSE_AGGREGATE_FIELDS)
+   return totals
+
+
+def audited_file_count(solr_response):
+   """How many files this audit actually admitted.
+
+   Walking the checkout to count files answers a different question: it
+   counts everything on disk, including the build output and vendored
+   directories the crawl was told to exclude. The summary then disagreed
+   with the crawl progress, with its own per-file records, and with the
+   number of files RAT was given -- on one excluded audit it reported
+   17,621 files against 402 records.
+
+   Solr holds one document per admitted file, so its count is the audit's
+   own answer to the question the summary is asking.
+   """
+   return solr_response["response"]["numFound"]
+
+
 def parseFile(filepath):
    f = open(filepath, 'r')
    lines = f.readlines()
@@ -102,14 +145,6 @@ def parseFile(filepath):
          return (notes, binaries,archives,standards,apachelicensed,generated,unknown)
 
    return (-1,-1,-1,-1,-1,-1,-1)
-
-def count_num_files(path, exclude):
-   count = 0
-   for root, dirs, files in os.walk(path):
-      for filename in files:
-         if exclude not in os.path.join(root, filename):
-            count += 1
-   return count
 
 def is_current_repo_file(fullpath, current_repo):
    try:
@@ -225,8 +260,8 @@ def main(argv=None):
             stats["mime_" + mime_count[i]] = mime_count[i + 1]
 
 
-      # Count the number of files
-      stats["files"] = count_num_files(rep["repo"], ".git")
+      # The files this audit admitted, not the files on disk.
+      stats["files"] = audited_file_count(response)
       # Index RAT logs into Solr
       response = solr_json(os.getenv("SOLR_URL") +
                                 "/drat/select?q=*%3A*&fl=filename%2Cfilelocation%2Cmimetype&wt=json&rows=0&indent=true")
@@ -273,23 +308,15 @@ def main(argv=None):
          index_solr(json_data)
 
       license_counts = Counter(fdata["license"] for fdata in unique_file_data.values())
-      totalNotes = license_counts["Notes"]
-      totalBinaries = license_counts["Binaries"]
-      totalArchives = license_counts["Archives"]
-      totalApache = license_counts["Apache"]
-      totalGenerated = license_counts["Generated"]
-      totalUnknown = license_counts["Unknown"]
-      non_standard_licenses = set(["Notes", "Binaries", "Archives", "Generated"])
-      totalStandards = sum(count for license_name, count in license_counts.items()
-                           if license_name not in non_standard_licenses)
+      totals = license_totals(license_counts)
 
-      stats["license_Notes"] = totalNotes
-      stats["license_Binaries"] = totalBinaries
-      stats["license_Archives"] = totalArchives
-      stats["license_Standards"] = totalStandards
-      stats["license_Apache"] = totalApache
-      stats["license_Generated"] = totalGenerated
-      stats["license_Unknown"] = totalUnknown
+      stats["license_Notes"] = totals["Notes"]
+      stats["license_Binaries"] = totals["Binaries"]
+      stats["license_Archives"] = totals["Archives"]
+      stats["license_Standards"] = totals["Standards"]
+      stats["license_Apache"] = totals["Apache"]
+      stats["license_Generated"] = totals["Generated"]
+      stats["license_Unknown"] = totals["Unknown"]
 
       # Write data into Solr
       stats["type"] = 'software'

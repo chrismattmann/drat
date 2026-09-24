@@ -58,6 +58,20 @@ jobs:
           key: solr-${{ hashFiles('drat/distribution/pom.xml') }}
           restore-keys: solr-
 
+      # The PGE scripts are shelled out to by the workflow, so nothing in
+      # the Maven reactor imports them and `mvn test` cannot reach them.
+      # They still decide what the audit reports.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test the PGE scripts
+        working-directory: drat
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pytest pge/src/test/python -v
+
       # install rather than test, so the packaged distribution exists for the
       # assertions below. `mvn test` on its own also works.
       - name: Build and test DRAT
