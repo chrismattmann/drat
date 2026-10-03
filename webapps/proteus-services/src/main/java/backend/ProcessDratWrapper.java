@@ -25,6 +25,7 @@ import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.oodt.cas.crawl.MetExtractorProductCrawler;
+import org.apache.oodt.cas.workflow.struct.avrotypes.OodtError;
 import org.apache.oodt.cas.workflow.structs.WorkflowInstance;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -1051,14 +1052,18 @@ public class ProcessDratWrapper extends GenericProcess
    * </p>
    */
   private String reasonFor(Exception e) {
-    try {
-      java.lang.reflect.Method detail = e.getClass().getMethod("getDetail");
-      Object value = detail.invoke(e);
-      if (value != null) {
-        return String.valueOf(value);
+    // Typed, now that the pin is new enough for the generated error to be on
+    // the classpath. Reflection was here because the detail field is on an
+    // Avro-generated class and reaching for it by name worked whatever the pin
+    // was -- at the cost of being silent about a real mistake: a renamed field
+    // or a different error type would read as "no detail" rather than failing
+    // to compile. Mnemosyne's own ClearWorkflowInstancesCliAction does exactly
+    // this, against the same class.
+    if (e instanceof OodtError) {
+      OodtError error = (OodtError) e;
+      if (error.getDetail() != null) {
+        return String.valueOf(error.getDetail());
       }
-    } catch (Exception noDetail) {
-      // Not one of the Avro errors; the message below will do.
     }
     return e.getMessage() != null ? e.getMessage() : e.toString();
   }
