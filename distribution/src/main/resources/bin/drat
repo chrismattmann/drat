@@ -587,10 +587,11 @@ function reset_file_manager_catalog {
                 # "Exception connecting to filemgr" once per file and
                 # ingests nothing. Take it down for the delete.
                 local bounced=false
-                if [[ -n $(check_port 9000) ]]; then
+                local filemgr_port=${FILEMGR_PORT:-9000}
+                if [[ -n $(check_port "$filemgr_port") ]]; then
                     echo "Stopping the file manager to release $idx"
                     if stop_service "file manager" \
-                            "$DRAT_HOME/filemgr/bin/filemgr" 9000; then
+                            "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"; then
                         bounced=true
                     else
                         # It has been asked to stop and has stopped serving,
@@ -600,7 +601,7 @@ function reset_file_manager_catalog {
                         # not touched, because something still holds it.
                         echo "Restarting the file manager"
                         start_service "file manager" \
-                            "$DRAT_HOME/filemgr/bin/filemgr" 9000
+                            "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"
                         return 0
                     fi
                 fi
@@ -612,7 +613,7 @@ function reset_file_manager_catalog {
                 if [[ "$bounced" == "true" ]]; then
                     echo "Restarting the file manager"
                     start_service "file manager" \
-                        "$DRAT_HOME/filemgr/bin/filemgr" 9000
+                        "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"
                 fi
             fi
             ;;
@@ -819,7 +820,8 @@ function reset_workflow_instances {
             # inside the timeout, a pid file left behind that blocked the
             # restart, a reset that cleared the file manager's catalog and
             # then gave up with no manager running.
-            if [[ -n $(check_port 9001) ]]; then
+            local workflow_port=${WORKFLOW_PORT:-9001}
+            if [[ -n $(check_port "$workflow_port") ]]; then
                 echo "Asking the workflow manager to clear its instances"
                 if "$DRAT_HOME"/workflow/bin/wmgr-client --url "$CLIENT_URL" \
                         --operation --clearInstances --force \
@@ -832,10 +834,10 @@ function reset_workflow_instances {
             fi
 
             local bounced=false
-            if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port 9001) ]]; then
+            if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port "$workflow_port") ]]; then
                 echo "Stopping the workflow manager to release $url"
                 if ! stop_service "workflow manager" \
-                        "$DRAT_HOME/workflow/bin/wmgr" 9001; then
+                        "$DRAT_HOME/workflow/bin/wmgr" "$workflow_port"; then
                     # Stopping here, rather than carrying on. This used to
                     # return quietly and let the reset continue: the file
                     # manager's catalog was then cleared, the run aborted for
@@ -864,7 +866,7 @@ function reset_workflow_instances {
             if [[ "$bounced" == "true" ]]; then
                 echo "Restarting the workflow manager"
                 start_service "workflow manager" \
-                    "$DRAT_HOME/workflow/bin/wmgr" 9001
+                    "$DRAT_HOME/workflow/bin/wmgr" "$workflow_port"
             fi
             return $cleared
             ;;
