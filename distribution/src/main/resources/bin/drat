@@ -103,7 +103,7 @@ function print_ui_info {
     echo "Navigate to http://${OODT_HOST}:${TOMCAT_PORT}/opsui/ to view the OODT browser and http://${OODT_HOST}:${SOLR_PORT}/solr to view the Solr catalog."
 }
 
-FILEMGR_URL=http://${OODT_HOST}:9000
+FILEMGR_URL=${FILEMGR_URL:-http://${OODT_HOST}:${FILEMGR_PORT:-9000}}
 # The DRAT core, not the Solr server. setenv.sh calls the server SOLR_URL and
 # the core SOLR_DRAT_URL; this file used SOLR_URL for the core, so the two
 # disagreed about what the name meant. Use the deployment's name for it.
@@ -115,7 +115,7 @@ if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
 else
     RUNJAVA=java
 fi
-CLIENT_URL=http://${OODT_HOST}:9001
+CLIENT_URL=${WORKFLOW_URL:-http://${OODT_HOST}:${WORKFLOW_PORT:-9001}}
 OPSUI_URL=http://${OODT_HOST}:${TOMCAT_PORT}/opsui
 
 # Where this deployment's PCS services answer. The audit is followed through
