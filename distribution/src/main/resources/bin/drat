@@ -499,12 +499,12 @@ function check_port {
 # Otherwise, check the ports are not busy.
 function check_services_running {
     if [[ $# == 0 ]]; then
-        if [[ ! -n $(check_port 9000) ]] || [[ ! -n $(check_port 9001) ]] || [[ ! -n $(check_port 9002) ]] || [[ ! -n $(check_port ${TOMCAT_PORT}) ]]; then
+        if [[ ! -n $(check_port ${FILEMGR_PORT:-9000}) ]] || [[ ! -n $(check_port ${WORKFLOW_PORT:-9001}) ]] || [[ ! -n $(check_port ${RESMGR_PORT:-9002}) ]] || [[ ! -n $(check_port ${TOMCAT_PORT}) ]]; then
             echo "Please start OODT by running '\$DRAT_HOME/bin/oodt start'"
             echo "Aborting..."
             exit 1
         fi
-    elif [[ -n $(check_port 9000) ]] || [[ -n $(check_port 9001) ]] || [[ -n $(check_port 9002) ]] || [[ -n $(check_port ${TOMCAT_PORT}) ]]; then
+    elif [[ -n $(check_port ${FILEMGR_PORT:-9000}) ]] || [[ -n $(check_port ${WORKFLOW_PORT:-9001}) ]] || [[ -n $(check_port ${RESMGR_PORT:-9002}) ]] || [[ -n $(check_port ${TOMCAT_PORT}) ]]; then
         echo "Please stop OODT by running '\$DRAT_HOME/bin/oodt stop'"
         echo "Aborting..."
         exit 1
