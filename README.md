@@ -5,7 +5,7 @@ Distributed Release Audit Tool (DRAT)
 [![Site](https://github.com/chrismattmann/drat/actions/workflows/site.yml/badge.svg?branch=master)](https://github.com/chrismattmann/drat/actions/workflows/site.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![JDK](https://img.shields.io/badge/JDK-21-orange.svg)](https://adoptium.net/)
-[![Powered by Mnemosyne](https://img.shields.io/badge/powered%20by-Mnemosyne%201.11.0-6E4B8E.svg)](https://github.com/chrismattmann/mnemosyne)
+[![Powered by Mnemosyne](https://img.shields.io/badge/powered%20by-Mnemosyne%201.13.9-6E4B8E.svg)](https://github.com/chrismattmann/mnemosyne)
 [![Website](https://img.shields.io/badge/website-chrismattmann.github.io%2Fdrat-informational.svg)](https://chrismattmann.github.io/drat/)
 [![Wiki](https://img.shields.io/badge/wiki-github-informational.svg)](https://github.com/chrismattmann/drat/wiki)
 
