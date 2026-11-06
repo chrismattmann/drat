@@ -103,7 +103,7 @@ function print_ui_info {
     echo "Navigate to http://${OODT_HOST}:${TOMCAT_PORT}/opsui/ to view the OODT browser and http://${OODT_HOST}:${SOLR_PORT}/solr to view the Solr catalog."
 }
 
-FILEMGR_URL=http://${OODT_HOST}:9000
+FILEMGR_URL=${FILEMGR_URL:-http://${OODT_HOST}:${FILEMGR_PORT:-9000}}
 # The DRAT core, not the Solr server. setenv.sh calls the server SOLR_URL and
 # the core SOLR_DRAT_URL; this file used SOLR_URL for the core, so the two
 # disagreed about what the name meant. Use the deployment's name for it.
@@ -115,7 +115,7 @@ if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
 else
     RUNJAVA=java
 fi
-CLIENT_URL=http://${OODT_HOST}:9001
+CLIENT_URL=${WORKFLOW_URL:-http://${OODT_HOST}:${WORKFLOW_PORT:-9001}}
 OPSUI_URL=http://${OODT_HOST}:${TOMCAT_PORT}/opsui
 
 # Where this deployment's PCS services answer. The audit is followed through
@@ -337,6 +337,7 @@ function unmark_run {
 # afterwards. This submits it and says nothing else about sequencing.
 function audit {
     check_services_running
+    wait_for_workflow_model
     local -a EX=()
     while [[ "${1:-}" == "--exclude" ]]; do
         if [[ $# -lt 2 ]]; then
@@ -363,17 +364,42 @@ function audit {
     fi
 
     pushd $DRAT_HOME/workflow/bin >> $DRAT_HOME/logs/drat.log 2>&1
+    local submission
     if [[ -n "$exclude" ]]; then
-        ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
+        submission=$(./wmgr-client --url $CLIENT_URL --operation --sendEvent \
             --eventName "$AUDIT_WORKFLOW_ID" --metaData \
             --key ProductPath "$repo" \
-            --key SysProp.DRAT_EXCLUDE "$exclude"
+            --key SysProp.DRAT_EXCLUDE "$exclude" 2>&1)
     else
-        ./wmgr-client --url $CLIENT_URL --operation --sendEvent \
+        submission=$(./wmgr-client --url $CLIENT_URL --operation --sendEvent \
             --eventName "$AUDIT_WORKFLOW_ID" --metaData \
-            --key ProductPath "$repo"
+            --key ProductPath "$repo" 2>&1)
     fi
+    printf '%s\n' "$submission"
     popd >> $DRAT_HOME/logs/drat.log 2>&1
+    if [[ "$submission" == *ERROR:* ]]; then
+        echo "The audit event was rejected; no run was started." >&2
+        return 1
+    fi
+}
+
+# A listening workflow port only says Jetty is up. The repository model can
+# still be absent (or still loading), in which case sendEvent prints an error
+# but historically exits zero. Require the audit model itself before a run.
+function wait_for_workflow_model {
+    local output attempt=0
+    while [[ $attempt -lt 60 ]]; do
+        output=$("$DRAT_HOME"/workflow/bin/wmgr-client --url "$CLIENT_URL" \
+            --operation --getWorkflowsByEvent \
+            --eventName "$AUDIT_WORKFLOW_ID" 2>&1 || true)
+        if [[ "$output" != *ERROR:* ]] && [[ -n "$output" ]]; then
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    echo "Workflow manager is listening but has not loaded $AUDIT_WORKFLOW_ID." >&2
+    return 1
 }
 
 
@@ -499,12 +525,12 @@ function check_port {
 # Otherwise, check the ports are not busy.
 function check_services_running {
     if [[ $# == 0 ]]; then
-        if [[ ! -n $(check_port 9000) ]] || [[ ! -n $(check_port 9001) ]] || [[ ! -n $(check_port 9002) ]] || [[ ! -n $(check_port ${TOMCAT_PORT}) ]]; then
+        if [[ ! -n $(check_port ${FILEMGR_PORT:-9000}) ]] || [[ ! -n $(check_port ${WORKFLOW_PORT:-9001}) ]] || [[ ! -n $(check_port ${RESMGR_PORT:-9002}) ]] || [[ ! -n $(check_port ${TOMCAT_PORT}) ]]; then
             echo "Please start OODT by running '\$DRAT_HOME/bin/oodt start'"
             echo "Aborting..."
             exit 1
         fi
-    elif [[ -n $(check_port 9000) ]] || [[ -n $(check_port 9001) ]] || [[ -n $(check_port 9002) ]] || [[ -n $(check_port ${TOMCAT_PORT}) ]]; then
+    elif [[ -n $(check_port ${FILEMGR_PORT:-9000}) ]] || [[ -n $(check_port ${WORKFLOW_PORT:-9001}) ]] || [[ -n $(check_port ${RESMGR_PORT:-9002}) ]] || [[ -n $(check_port ${TOMCAT_PORT}) ]]; then
         echo "Please stop OODT by running '\$DRAT_HOME/bin/oodt stop'"
         echo "Aborting..."
         exit 1
@@ -587,10 +613,11 @@ function reset_file_manager_catalog {
                 # "Exception connecting to filemgr" once per file and
                 # ingests nothing. Take it down for the delete.
                 local bounced=false
-                if [[ -n $(check_port 9000) ]]; then
+                local filemgr_port=${FILEMGR_PORT:-9000}
+                if [[ -n $(check_port "$filemgr_port") ]]; then
                     echo "Stopping the file manager to release $idx"
                     if stop_service "file manager" \
-                            "$DRAT_HOME/filemgr/bin/filemgr" 9000; then
+                            "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"; then
                         bounced=true
                     else
                         # It has been asked to stop and has stopped serving,
@@ -600,7 +627,7 @@ function reset_file_manager_catalog {
                         # not touched, because something still holds it.
                         echo "Restarting the file manager"
                         start_service "file manager" \
-                            "$DRAT_HOME/filemgr/bin/filemgr" 9000
+                            "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"
                         return 0
                     fi
                 fi
@@ -612,7 +639,7 @@ function reset_file_manager_catalog {
                 if [[ "$bounced" == "true" ]]; then
                     echo "Restarting the file manager"
                     start_service "file manager" \
-                        "$DRAT_HOME/filemgr/bin/filemgr" 9000
+                        "$DRAT_HOME/filemgr/bin/filemgr" "$filemgr_port"
                 fi
             fi
             ;;
@@ -812,30 +839,12 @@ function reset_workflow_instances {
             # meant to start clean starts on top of every instance from the
             # last one. Nothing is in flight at reset, so the manager can be
             # put down for the few seconds this takes.
-            # Asked of the manager while it runs, when it is running: it
-            # owns the repository, so there is no lock to take and nothing to
-            # stop. Stopping it is what this used to do, and stopping it is
-            # where the sequence kept failing -- a manager that would not stop
-            # inside the timeout, a pid file left behind that blocked the
-            # restart, a reset that cleared the file manager's catalog and
-            # then gave up with no manager running.
-            if [[ -n $(check_port 9001) ]]; then
-                echo "Asking the workflow manager to clear its instances"
-                if "$DRAT_HOME"/workflow/bin/wmgr-client --url "$CLIENT_URL" \
-                        --operation --clearInstances --force \
-                        >> $DRAT_HOME/logs/drat.log 2>&1; then
-                    echo "Cleared workflow instances"
-                    return 0
-                fi
-                echo "The workflow manager could not clear its instances;"
-                echo "falling back to clearing the database directly."
-            fi
-
+            local workflow_port=${WORKFLOW_PORT:-9001}
             local bounced=false
-            if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port 9001) ]]; then
+            if [[ "$url" == *hsqldb:file:* ]] && [[ -n $(check_port "$workflow_port") ]]; then
                 echo "Stopping the workflow manager to release $url"
                 if ! stop_service "workflow manager" \
-                        "$DRAT_HOME/workflow/bin/wmgr" 9001; then
+                        "$DRAT_HOME/workflow/bin/wmgr" "$workflow_port"; then
                     # Stopping here, rather than carrying on. This used to
                     # return quietly and let the reset continue: the file
                     # manager's catalog was then cleared, the run aborted for
@@ -864,7 +873,7 @@ function reset_workflow_instances {
             if [[ "$bounced" == "true" ]]; then
                 echo "Restarting the workflow manager"
                 start_service "workflow manager" \
-                    "$DRAT_HOME/workflow/bin/wmgr" 9001
+                    "$DRAT_HOME/workflow/bin/wmgr" "$workflow_port"
             fi
             return $cleared
             ;;

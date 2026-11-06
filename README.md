@@ -5,9 +5,29 @@ Distributed Release Audit Tool (DRAT)
 [![Site](https://github.com/chrismattmann/drat/actions/workflows/site.yml/badge.svg?branch=master)](https://github.com/chrismattmann/drat/actions/workflows/site.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![JDK](https://img.shields.io/badge/JDK-21-orange.svg)](https://adoptium.net/)
-[![Powered by Mnemosyne](https://img.shields.io/badge/powered%20by-Mnemosyne%201.11.0-6E4B8E.svg)](https://github.com/chrismattmann/mnemosyne)
+[![Powered by Mnemosyne](https://img.shields.io/badge/powered%20by-Mnemosyne%201.13.9-6E4B8E.svg)](https://github.com/chrismattmann/mnemosyne)
 [![Website](https://img.shields.io/badge/website-chrismattmann.github.io%2Fdrat-informational.svg)](https://chrismattmann.github.io/drat/)
 [![Wiki](https://img.shields.io/badge/wiki-github-informational.svg)](https://github.com/chrismattmann/drat/wiki)
+
+## Optional Bytewise MIME detector
+
+DRAT uses Mnemosyne's Tika-backed reference detector by default. With a Mnemosyne build containing
+the optional Bytewise integration, a deployment can select the persistent Bytewise service without
+changing the audit workflow or batching files in DRAT:
+
+```bash
+export CATALINA_OPTS="$CATALINA_OPTS -Dorg.apache.oodt.mime.detector=bytewise"
+export CATALINA_OPTS="$CATALINA_OPTS -Dorg.apache.oodt.bytewise.url=http://127.0.0.1:8765"
+export CATALINA_OPTS="$CATALINA_OPTS -Dorg.apache.oodt.bytewise.timeoutMillis=30000"
+```
+
+Start and health-check Bytewise before an audit. Detection remains one call per reference and the
+MIME value follows the existing file-manager metadata path into Solr. Service errors fall back to
+Tika and are logged by Mnemosyne; a nonzero fallback count is a deployment health signal.
+
+For side-by-side evaluation, DRAT honors `FILEMGR_PORT`, `WORKFLOW_PORT`, `RESMGR_PORT`,
+`TOMCAT_PORT`, `FILEMGR_URL`, and `WORKFLOW_URL`. A valid comparison must reconcile equal nonzero
+product counts and record service rejects/timeouts; an empty or unloaded workflow is a failed run.
 
 <a href="https://chrismattmann.github.io/drat/"><img align="left" width="80" height="80" src="https://chrismattmann.github.io/drat/assets/drat-mark.svg" alt="DRAT"></a>
  
@@ -31,4 +51,3 @@ You can clone the wiki by running
 `git clone https://github.com/chrismattmann/drat.wiki.git`
 
 Visit our new website [chrismattmann.github.io/drat](https://chrismattmann.github.io/drat/) at [Github](https://github.com/).
-
